@@ -38,7 +38,7 @@ function Report({ report }: { report: TickerReport }) {
 export function Tracker() {
   const router = useRouter();
   const symbol = (useSearchParams().get("t") ?? "").trim().toUpperCase();
-  const [state, setState] = useState<State>({ status: "idle" });
+  const [state, setState] = useState<State>(symbol ? { status: "loading" } : { status: "idle" });
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -69,6 +69,13 @@ export function Tracker() {
     };
   }, [symbol, attempt]);
 
+  const status =
+    state.status === "loading"
+      ? `Loading ${symbol}…`
+      : state.status === "done"
+        ? `Loaded ${state.report.symbol}, ${state.report.quarters.length} quarters`
+        : "";
+
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -80,7 +87,8 @@ export function Tracker() {
           onSubmit={(s) => router.push(`/?t=${encodeURIComponent(s)}`)}
         />
       </header>
-      <section className="mt-8" aria-live="polite">
+      <p role="status" className="sr-only">{status}</p>
+      <section className="mt-8">
         {state.status === "idle" && (
           <p className="max-w-prose text-zinc-600 dark:text-zinc-400">
             Type a ticker to see how its last 12 earnings reports compared with analyst expectations — and how the stock reacted.

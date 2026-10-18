@@ -29,11 +29,19 @@ function MoveCell({ move }: { move: Move | null }) {
 
 export function QuarterTable({ quarters }: { quarters: QuarterRow[] }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
+    <div
+      role="region"
+      aria-label="Quarterly results"
+      tabIndex={0}
+      className="overflow-x-auto rounded-xl border border-zinc-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-zinc-800"
+    >
       <table className="w-full min-w-[920px] text-sm">
+        <caption className="sr-only">
+          Earnings results by quarter: EPS estimate and actual, surprise, revenue, and 1, 3 and 5 day moves versus the S&amp;P 500
+        </caption>
         <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-600 dark:text-zinc-400 dark:bg-zinc-900">
           <tr>
-            <th scope="col" className="px-3 py-2">Quarter ended</th>
+            <th scope="col" className="sticky left-0 bg-zinc-50 px-2 py-2 sm:px-3 dark:bg-zinc-900">Quarter ended</th>
             <th scope="col" className="px-3 py-2">Reported</th>
             <th scope="col" className="px-3 py-2 text-right">EPS est → actual</th>
             <th scope="col" className="px-3 py-2 text-right">Surprise</th>
@@ -45,11 +53,11 @@ export function QuarterTable({ quarters }: { quarters: QuarterRow[] }) {
         </thead>
         <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
           {quarters.map((q) => (
-            <tr key={q.fiscalDateEnding} className={q.flag ? "bg-amber-50 dark:bg-amber-950/40" : ""}>
-              <th scope="row" className="whitespace-nowrap px-3 py-2 text-left font-medium">
+            <tr key={q.fiscalDateEnding} className={q.flag ? "bg-amber-50 dark:bg-[#221007]" : "bg-background"}>
+              <th scope="row" className="sticky left-0 whitespace-nowrap bg-inherit px-2 py-2 text-left font-medium sm:px-3">
                 {formatMonthYear(q.fiscalDateEnding)}
                 {q.flag && (
-                  <span className="ml-2 rounded bg-amber-200 px-1.5 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-900 dark:text-amber-100">
+                  <span className="mt-0.5 block w-fit rounded bg-amber-200 px-1.5 py-0.5 text-[11px] sm:ml-2 sm:mt-0 sm:inline sm:text-xs font-medium text-amber-900 dark:bg-amber-900 dark:text-amber-100">
                     {FLAG_LABEL[q.flag]}
                   </span>
                 )}
