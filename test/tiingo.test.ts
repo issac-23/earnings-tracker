@@ -21,6 +21,15 @@ describe("parsePrices", () => {
     ]);
   });
 
+  it("drops rows without adjClose instead of falling back to close", () => {
+    expect(parsePrices([
+      { date: "2025-08-26T00:00:00.000Z", close: 198 },
+      { date: "2025-08-27T00:00:00.000Z", close: 200, adjClose: 100 },
+    ])).toEqual([
+      { date: "2025-08-27", close: 100 },
+    ]);
+  });
+
   it("non-array → UPSTREAM", () => {
     let code: string | undefined;
     try { parsePrices({ detail: "x" }); } catch (e) { code = (e as { code?: string }).code; }
