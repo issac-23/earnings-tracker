@@ -28,3 +28,23 @@ export function createFileCache(dir: string, now: () => number = Date.now): Cach
     },
   };
 }
+
+/** Return cached data if younger than maxAgeMs; otherwise fetch. If fetching fails, fall back to old cached data. */
+export async function cachedFetch<T>(
+  cache: Cache,
+  key: string,
+  maxAgeMs: number,
+  fetcher: () => Promise<T>,
+  now: () => number = Date.now,
+): Promise<{ data: T; stale: boolean }> {
+  const hit = await cache.get<T>(key);
+  if (hit && now() - hit.savedAt < maxAgeMs) return { data: hit.data, stale: false };
+  try {
+    const data = await fetcher();
+    await cache.set(key, data);
+    return { data, stale: false };
+  } catch (err) {
+    if (hit) return { data: hit.data, stale: true };
+    throw err;
+  }
+}
