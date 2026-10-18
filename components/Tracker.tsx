@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { TickerReport } from "@/lib/types";
+import { QuarterChart } from "./QuarterChart";
 import { QuarterTable } from "./QuarterTable";
 import { SearchBox } from "./SearchBox";
 import { SummaryStrip } from "./SummaryStrip";
@@ -28,6 +29,7 @@ function Report({ report }: { report: TickerReport }) {
         )}
       </div>
       <SummaryStrip summary={report.summary} />
+      <QuarterChart quarters={report.quarters} />
       <QuarterTable quarters={report.quarters} />
     </div>
   );
