@@ -14,6 +14,8 @@ type State =
   | { status: "error"; message: string; canRetry: boolean }
   | { status: "done"; report: TickerReport };
 
+const BASE_TITLE = "Earnings Reaction Tracker";
+
 function Report({ report }: { report: TickerReport }) {
   return (
     <div className="space-y-8">
@@ -40,6 +42,10 @@ export function Tracker() {
   const symbol = (useSearchParams().get("t") ?? "").trim().toUpperCase();
   const [state, setState] = useState<State>(symbol ? { status: "loading" } : { status: "idle" });
   const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    document.title = state.status === "done" ? `${state.report.symbol} · ${BASE_TITLE}` : BASE_TITLE;
+  }, [state]);
 
   useEffect(() => {
     if (!symbol) {
@@ -99,7 +105,7 @@ export function Tracker() {
           <div role="alert" className="rounded-lg border border-rose-300 bg-rose-50 p-4 text-rose-800 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-200">
             <p>{state.message}</p>
             {state.canRetry && (
-              <button type="button" onClick={() => setAttempt((a) => a + 1)} className="mt-3 font-medium underline">
+              <button type="button" onClick={() => setAttempt((a) => a + 1)} className="mt-3 rounded font-medium underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">
                 Try again
               </button>
             )}
