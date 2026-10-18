@@ -70,7 +70,7 @@ export function Tracker() {
   }, [symbol, attempt]);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-semibold tracking-tight">Earnings Reaction Tracker</h1>
         <SearchBox
