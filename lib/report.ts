@@ -14,6 +14,8 @@ export interface ReportDeps {
   tiingoKey?: string;
   fetchFn?: typeof fetch;
   now?: () => number;
+  /** Pause before the second Alpha Vantage call, to stay under its burst limit. */
+  avSpacingMs?: number;
 }
 
 export function normalizeSymbol(raw: string): string | null {
@@ -30,12 +32,16 @@ export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<
   const fetchFn = deps.fetchFn ?? fetch;
   const now = deps.now ?? Date.now;
   const start = new Date(now() - 4 * 365 * DAY).toISOString().slice(0, 10);
+  const spacing = deps.avSpacingMs ?? 1500;
   const get = <T,>(key: string, maxAge: number, fn: () => Promise<T>) => cachedFetch(cache, key, maxAge, fn, now);
 
   // Earnings first: if this fails there is nothing to show, and it avoids spending other calls.
   const earnings = await get(`av-earnings-${symbol}`, DAY, () => fetchEarnings(symbol, avKey, fetchFn));
   const [revenue, name, stock, spy] = await Promise.all([
-    get(`av-income-${symbol}`, DAY, () => fetchRevenue(symbol, avKey, fetchFn))
+    get(`av-income-${symbol}`, DAY, async () => {
+      if (spacing > 0) await new Promise((r) => setTimeout(r, spacing));
+      return fetchRevenue(symbol, avKey, fetchFn);
+    })
       .catch(() => ({ data: {} as Record<string, number>, stale: false })),
     get(`tiingo-meta-${symbol}`, 7 * DAY, () => fetchName(symbol, tiingoKey, fetchFn))
       .catch(() => ({ data: null as string | null, stale: false })),
@@ -50,6 +56,6 @@ export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<
     quarters,
     summary: summarize(quarters),
     fetchedAt: new Date(now()).toISOString(),
-    stale: [earnings, stock, spy].some((r) => r.stale),
+    stale: [earnings, revenue, stock, spy].some((r) => r.stale),
   };
 }
