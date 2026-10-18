@@ -121,4 +121,15 @@ describe("buildTickerReport", () => {
     const r = await buildTickerReport("TEST", deps);
     expect(r.quarters[0].revenue).toBeNull();
   });
+
+  it("does not refresh revenue when earnings came back stale", async () => {
+    await buildTickerReport("TEST", deps);
+    clock += 2 * 24 * 60 * 60 * 1000;
+    routes["function=EARNINGS"] = json({ Information: "standard API rate limit is 25 requests per day" });
+    const before = calls.length;
+    const r = await buildTickerReport("TEST", { ...deps, avSpacingMs: 50 });
+    expect(calls.slice(before).some((u) => u.includes("function=INCOME_STATEMENT"))).toBe(false);
+    expect(r.stale).toBe(true);
+    expect(r.quarters[0].revenue).toBe(46.7e9);
+  });
 });
