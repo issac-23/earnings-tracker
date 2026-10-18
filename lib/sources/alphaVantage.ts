@@ -1,6 +1,7 @@
 import { DataError } from "../errors";
 import type { EarningsRecord, ReportTiming } from "../types";
 
+const BASE = "https://www.alphavantage.co/query";
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function num(v: unknown): number | null {
@@ -62,4 +63,24 @@ export function parseIncomeStatement(json: unknown): Record<string, number> {
     if (typeof r.fiscalDateEnding === "string" && v !== null) out[r.fiscalDateEnding] = v;
   }
   return out;
+}
+
+async function avGet(fn: string, symbol: string, apiKey: string, fetchFn: typeof fetch): Promise<unknown> {
+  const url = `${BASE}?function=${fn}&symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(apiKey)}`;
+  let res: Response;
+  try {
+    res = await fetchFn(url, { cache: "no-store" });
+  } catch {
+    throw new DataError("UPSTREAM", "Couldn't reach the data provider.");
+  }
+  if (!res.ok) throw new DataError("UPSTREAM", "Couldn't reach the data provider.");
+  return res.json();
+}
+
+export async function fetchEarnings(symbol: string, apiKey: string, fetchFn: typeof fetch = fetch): Promise<EarningsRecord[]> {
+  return parseEarnings(await avGet("EARNINGS", symbol, apiKey, fetchFn), symbol);
+}
+
+export async function fetchRevenue(symbol: string, apiKey: string, fetchFn: typeof fetch = fetch): Promise<Record<string, number>> {
+  return parseIncomeStatement(await avGet("INCOME_STATEMENT", symbol, apiKey, fetchFn));
 }
