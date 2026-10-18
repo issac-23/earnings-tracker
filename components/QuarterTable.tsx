@@ -9,11 +9,20 @@ const TIMING_LABEL = { BMO: "before open", AMC: "after close", unknown: "timing 
 
 function MoveCell({ move }: { move: Move | null }) {
   return (
-    <td
-      className={`px-3 py-2 text-right tabular-nums ${tone(move?.excess)}`}
-      title={move ? `Stock ${formatPct(move.stock)} · S&P ${formatPct(move.spy)}` : "Not enough trading days yet"}
-    >
-      {formatPct(move?.excess ?? null)}
+    <td className="px-3 py-2 text-right tabular-nums">
+      {move ? (
+        <>
+          <span className={tone(move.excess)}>{formatPct(move.excess)}</span>
+          <span className="block whitespace-nowrap text-xs text-zinc-600 dark:text-zinc-400">
+            Stock {formatPct(move.stock)} · S&amp;P {formatPct(move.spy)}
+          </span>
+        </>
+      ) : (
+        <>
+          <span aria-hidden="true">—</span>
+          <span className="sr-only">not enough trading days yet</span>
+        </>
+      )}
     </td>
   );
 }
@@ -21,7 +30,7 @@ function MoveCell({ move }: { move: Move | null }) {
 export function QuarterTable({ quarters }: { quarters: QuarterRow[] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
-      <table className="w-full min-w-[760px] text-sm">
+      <table className="w-full min-w-[920px] text-sm">
         <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-600 dark:text-zinc-400 dark:bg-zinc-900">
           <tr>
             <th scope="col" className="px-3 py-2">Quarter ended</th>
