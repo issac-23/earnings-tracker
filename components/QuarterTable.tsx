@@ -22,7 +22,7 @@ export function QuarterTable({ quarters }: { quarters: QuarterRow[] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
       <table className="w-full min-w-[760px] text-sm">
-        <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-900">
+        <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-600 dark:text-zinc-400 dark:bg-zinc-900">
           <tr>
             <th scope="col" className="px-3 py-2">Quarter ended</th>
             <th scope="col" className="px-3 py-2">Reported</th>
@@ -46,7 +46,7 @@ export function QuarterTable({ quarters }: { quarters: QuarterRow[] }) {
                 )}
               </th>
               <td className="whitespace-nowrap px-3 py-2">
-                {formatDate(q.reportedDate)} <span className="text-zinc-500">· {TIMING_LABEL[q.timing]}</span>
+                {formatDate(q.reportedDate)} <span className="text-zinc-600 dark:text-zinc-400">· {TIMING_LABEL[q.timing]}</span>
               </td>
               <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
                 {formatEps(q.estimatedEPS)} → {formatEps(q.reportedEPS)}

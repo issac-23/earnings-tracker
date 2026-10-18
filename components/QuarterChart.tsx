@@ -18,7 +18,7 @@ export function QuarterChart({ quarters }: { quarters: QuarterRow[] }) {
   const tick = { fontSize: 12, fill: "var(--viz-muted)" };
   return (
     <figure className={`${THEME_VARS} rounded-xl border border-zinc-200 p-4 dark:border-zinc-800`}>
-      <figcaption className="mb-3 text-sm text-zinc-500">
+      <figcaption className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
         EPS surprise vs 1-day move vs S&amp;P 500 (%) — bars pointing opposite ways mean results and reaction disagreed
       </figcaption>
       <div

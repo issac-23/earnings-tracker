@@ -4,9 +4,9 @@ import type { Summary } from "@/lib/types";
 function Stat({ label, value, note }: { label: string; value: string; note: string }) {
   return (
     <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-      <dt className="text-sm text-zinc-500">{label}</dt>
+      <dt className="text-sm text-zinc-600 dark:text-zinc-400">{label}</dt>
       <dd className="mt-1 text-2xl font-semibold tabular-nums">{value}</dd>
-      <dd className="mt-1 text-xs text-zinc-500">{note}</dd>
+      <dd className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{note}</dd>
     </div>
   );
 }

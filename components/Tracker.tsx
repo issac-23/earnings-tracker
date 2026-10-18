@@ -19,7 +19,7 @@ function Report({ report }: { report: TickerReport }) {
     <div className="space-y-8">
       <div>
         <h2 className="text-2xl font-semibold">{report.name ? `${report.name} (${report.symbol})` : report.symbol}</h2>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           Last {report.quarters.length} quarters · 1D / 3D / 5D moves are the stock minus the S&amp;P 500, in %
         </p>
         {report.stale && (
@@ -82,11 +82,11 @@ export function Tracker() {
       </header>
       <section className="mt-8" aria-live="polite">
         {state.status === "idle" && (
-          <p className="max-w-prose text-zinc-500">
+          <p className="max-w-prose text-zinc-600 dark:text-zinc-400">
             Type a ticker to see how its last 12 earnings reports compared with analyst expectations — and how the stock reacted.
           </p>
         )}
-        {state.status === "loading" && <p className="text-zinc-500">Loading {symbol}…</p>}
+        {state.status === "loading" && <p className="text-zinc-600 dark:text-zinc-400">Loading {symbol}…</p>}
         {state.status === "error" && (
           <div role="alert" className="rounded-lg border border-rose-300 bg-rose-50 p-4 text-rose-800 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-200">
             <p>{state.message}</p>
