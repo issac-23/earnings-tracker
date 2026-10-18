@@ -31,6 +31,7 @@ function makeRoutes(): Record<string, () => Response> {
 let dir: string;
 let routes: Record<string, () => Response>;
 let calls: string[];
+let times: number[];
 let clock: number;
 let deps: ReportDeps;
 
@@ -38,15 +39,17 @@ beforeEach(async () => {
   dir = await mkdtemp(path.join(tmpdir(), "et-report-"));
   routes = makeRoutes();
   calls = [];
+  times = [];
   clock = Date.parse("2025-09-10T00:00:00Z");
   const fetchFn = (async (input: string | URL | Request) => {
     const url = String(input);
     calls.push(url);
+    times.push(performance.now());
     const hit = Object.entries(routes).find(([k]) => url.includes(k));
     if (!hit) throw new Error(`unrouted ${url}`);
     return hit[1]();
   }) as typeof fetch;
-  deps = { cache: createFileCache(dir, () => clock), avKey: "AV", tiingoKey: "TI", fetchFn, now: () => clock };
+  deps = { cache: createFileCache(dir, () => clock), avKey: "AV", tiingoKey: "TI", fetchFn, now: () => clock, avSpacingMs: 0 };
 });
 afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
 
@@ -103,5 +106,19 @@ describe("buildTickerReport", () => {
     const r = await buildTickerReport("TEST", deps);
     expect(r.stale).toBe(true);
     expect(r.quarters).toHaveLength(1);
+  });
+
+  it("spaces the revenue call after the earnings call", async () => {
+    await buildTickerReport("TEST", { ...deps, avSpacingMs: 20 });
+    const e = calls.findIndex((u) => u.includes("function=EARNINGS"));
+    const i = calls.findIndex((u) => u.includes("function=INCOME_STATEMENT"));
+    expect(i).toBeGreaterThan(e);
+    expect(times[i] - times[e]).toBeGreaterThanOrEqual(19);
+  });
+
+  it("revenue rate limit degrades to empty revenue", async () => {
+    routes["function=INCOME_STATEMENT"] = json({ Information: "standard API rate limit is 25 requests per day" });
+    const r = await buildTickerReport("TEST", deps);
+    expect(r.quarters[0].revenue).toBeNull();
   });
 });
