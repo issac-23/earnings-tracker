@@ -52,4 +52,10 @@ describe("cachedFetch", () => {
     const failing = async (): Promise<string> => { throw new Error("down"); };
     await expect(cachedFetch(createFileCache(dir), "k", 500, failing)).rejects.toThrow("down");
   });
+
+  it("returns fresh data even if the cache write fails", async () => {
+    const base = createFileCache(dir, () => 1000);
+    const cache = { get: base.get, set: async (): Promise<void> => { throw new Error("disk full"); } };
+    expect(await cachedFetch(cache, "k", 500, async () => "fresh", () => 2000)).toEqual({ data: "fresh", stale: false });
+  });
 });
