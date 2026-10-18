@@ -36,11 +36,11 @@ export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<
   const get = <T,>(key: string, maxAge: number, fn: () => Promise<T>) => cachedFetch(cache, key, maxAge, fn, now);
 
   // Earnings first: if this fails there is nothing to show, and it avoids spending other calls.
-  const earnings = await get(`av-earnings-${symbol}`, DAY, () => fetchEarnings(symbol, avKey, fetchFn));
+  const earnings = await get(`av-earnings-${symbol}`, DAY, () => fetchEarnings(symbol, avKey, fetchFn, spacing));
   const [revenue, name, stock, spy] = await Promise.all([
     get(`av-income-${symbol}`, DAY, async () => {
       if (spacing > 0) await new Promise((r) => setTimeout(r, spacing));
-      return fetchRevenue(symbol, avKey, fetchFn);
+      return fetchRevenue(symbol, avKey, fetchFn, spacing);
     })
       .catch(() => ({ data: {} as Record<string, number>, stale: false })),
     get(`tiingo-meta-${symbol}`, 7 * DAY, () => fetchName(symbol, tiingoKey, fetchFn))
