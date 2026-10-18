@@ -23,12 +23,12 @@ export function SearchBox({ initial, busy, onSubmit }: { initial: string; busy: 
         autoCapitalize="characters"
         autoComplete="off"
         spellCheck={false}
-        className="w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 uppercase placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:w-56 dark:border-zinc-700"
+        className="w-full rounded-lg border border-zinc-500 bg-transparent px-3 py-2 uppercase placeholder:normal-case min-w-0 sm:w-56 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
       />
       <button
         type="submit"
         disabled={busy}
-        className="rounded-lg bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+        className="shrink-0 whitespace-nowrap rounded-lg bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
       >
         {busy ? "Loading…" : "Look up"}
       </button>
