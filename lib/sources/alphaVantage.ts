@@ -77,10 +77,23 @@ async function avGet(fn: string, symbol: string, apiKey: string, fetchFn: typeof
   return res.json();
 }
 
-export async function fetchEarnings(symbol: string, apiKey: string, fetchFn: typeof fetch = fetch): Promise<EarningsRecord[]> {
-  return parseEarnings(await avGet("EARNINGS", symbol, apiKey, fetchFn), symbol);
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** Alpha Vantage sometimes throttles a lone request with its rate-limit message; one retry usually succeeds. */
+async function withRateLimitRetry<T>(request: () => Promise<unknown>, parse: (json: unknown) => T, retryDelayMs: number): Promise<T> {
+  try {
+    return parse(await request());
+  } catch (e) {
+    if (!(e instanceof DataError) || e.code !== "RATE_LIMIT") throw e;
+  }
+  await sleep(retryDelayMs);
+  return parse(await request());
 }
 
-export async function fetchRevenue(symbol: string, apiKey: string, fetchFn: typeof fetch = fetch): Promise<Record<string, number>> {
-  return parseIncomeStatement(await avGet("INCOME_STATEMENT", symbol, apiKey, fetchFn));
+export function fetchEarnings(symbol: string, apiKey: string, fetchFn: typeof fetch = fetch, retryDelayMs = 1500): Promise<EarningsRecord[]> {
+  return withRateLimitRetry(() => avGet("EARNINGS", symbol, apiKey, fetchFn), (j) => parseEarnings(j, symbol), retryDelayMs);
+}
+
+export function fetchRevenue(symbol: string, apiKey: string, fetchFn: typeof fetch = fetch, retryDelayMs = 1500): Promise<Record<string, number>> {
+  return withRateLimitRetry(() => avGet("INCOME_STATEMENT", symbol, apiKey, fetchFn), parseIncomeStatement, retryDelayMs);
 }
