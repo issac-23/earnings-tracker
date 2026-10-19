@@ -88,4 +88,31 @@ describe("fetchEarnings", () => {
     const f = (async () => { throw new TypeError("fetch failed"); }) as unknown as typeof fetch;
     await expect(fetchEarnings("TEST", "KEY", f)).rejects.toMatchObject({ code: "UPSTREAM", message: "Couldn't reach the data provider." });
   });
+
+  describe("rate-limit retry", () => {
+    const limited = { Information: "Our standard API rate limit is 25 requests per day." };
+    const respond = (...bodies: unknown[]) => {
+      const q = [...bodies];
+      return vi.fn(async () => new Response(JSON.stringify(q.shift())));
+    };
+
+    it("retries once when throttled, then succeeds", async () => {
+      const f = respond(limited, EARNINGS_JSON);
+      const rows = await fetchEarnings("TEST", "KEY", f as unknown as typeof fetch, 0);
+      expect(rows).toHaveLength(3);
+      expect(f).toHaveBeenCalledTimes(2);
+    });
+
+    it("rejects with RATE_LIMIT when still throttled after the retry", async () => {
+      const f = respond(limited, limited);
+      await expect(fetchEarnings("TEST", "KEY", f as unknown as typeof fetch, 0)).rejects.toMatchObject({ code: "RATE_LIMIT" });
+      expect(f).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not retry NOT_FOUND", async () => {
+      const f = respond({});
+      await expect(fetchEarnings("TEST", "KEY", f as unknown as typeof fetch, 0)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      expect(f).toHaveBeenCalledTimes(1);
+    });
+  });
 });
