@@ -39,12 +39,16 @@ export async function cachedFetch<T>(
 ): Promise<{ data: T; stale: boolean }> {
   const hit = await cache.get<T>(key);
   if (hit && now() - hit.savedAt < maxAgeMs) return { data: hit.data, stale: false };
+  let data: T;
   try {
-    const data = await fetcher();
-    await cache.set(key, data);
-    return { data, stale: false };
+    data = await fetcher();
   } catch (err) {
     if (hit) return { data: hit.data, stale: true };
     throw err;
   }
+  // A failed write must not discard data we just fetched.
+  try {
+    await cache.set(key, data);
+  } catch {}
+  return { data, stale: false };
 }

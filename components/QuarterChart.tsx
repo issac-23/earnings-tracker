@@ -18,7 +18,7 @@ export function QuarterChart({ quarters }: { quarters: QuarterRow[] }) {
   const tick = { fontSize: 12, fill: "var(--viz-muted)" };
   return (
     <figure className={`${THEME_VARS} rounded-xl border border-zinc-200 p-4 dark:border-zinc-800`}>
-      <figcaption className="mb-3 text-sm text-zinc-500">
+      <figcaption className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
         EPS surprise vs 1-day move vs S&amp;P 500 (%) — bars pointing opposite ways mean results and reaction disagreed
       </figcaption>
       <div
@@ -27,7 +27,7 @@ export function QuarterChart({ quarters }: { quarters: QuarterRow[] }) {
         aria-label="Bar chart comparing EPS surprise with the 1-day move versus the S&P 500 for each quarter. Exact values are in the table below."
       >
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} barGap={2} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
+          <BarChart accessibilityLayer={false} data={data} barGap={2} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
             <CartesianGrid vertical={false} stroke="var(--viz-muted)" strokeOpacity={0.2} />
             <XAxis dataKey="label" tick={tick} tickLine={false} axisLine={false} minTickGap={8} />
             <YAxis
@@ -50,6 +50,7 @@ export function QuarterChart({ quarters }: { quarters: QuarterRow[] }) {
               itemStyle={{ color: "var(--viz-ink)" }}
             />
             <Legend
+              itemSorter={null}
               wrapperStyle={{ fontSize: 12 }}
               formatter={(value) => <span style={{ color: "var(--viz-ink)" }}>{value}</span>}
             />

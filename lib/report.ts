@@ -37,12 +37,19 @@ export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<
 
   // Earnings first: if this fails there is nothing to show, and it avoids spending other calls.
   const earnings = await get(`av-earnings-${symbol}`, DAY, () => fetchEarnings(symbol, avKey, fetchFn, spacing));
+  const revenueKey = `av-income-${symbol}`;
+  const revenueP = earnings.stale
+    ? // Alpha Vantage just refused a refresh: don't spend another call, reuse whatever is cached.
+      cache
+        .get<Record<string, number>>(revenueKey)
+        .then((hit) => ({ data: hit?.data ?? ({} as Record<string, number>), stale: false }))
+        .catch(() => ({ data: {} as Record<string, number>, stale: false }))
+    : get(revenueKey, DAY, async () => {
+        if (spacing > 0) await new Promise((r) => setTimeout(r, spacing));
+        return fetchRevenue(symbol, avKey, fetchFn, spacing);
+      }).catch(() => ({ data: {} as Record<string, number>, stale: false }));
   const [revenue, name, stock, spy] = await Promise.all([
-    get(`av-income-${symbol}`, DAY, async () => {
-      if (spacing > 0) await new Promise((r) => setTimeout(r, spacing));
-      return fetchRevenue(symbol, avKey, fetchFn, spacing);
-    })
-      .catch(() => ({ data: {} as Record<string, number>, stale: false })),
+    revenueP,
     get(`tiingo-meta-${symbol}`, 7 * DAY, () => fetchName(symbol, tiingoKey, fetchFn))
       .catch(() => ({ data: null as string | null, stale: false })),
     get(`tiingo-prices-${symbol}`, DAY, () => fetchPrices(symbol, start, tiingoKey, fetchFn)),

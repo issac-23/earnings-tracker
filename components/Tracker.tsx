@@ -14,12 +14,14 @@ type State =
   | { status: "error"; message: string; canRetry: boolean }
   | { status: "done"; report: TickerReport };
 
+const BASE_TITLE = "Earnings Reaction Tracker";
+
 function Report({ report }: { report: TickerReport }) {
   return (
     <div className="space-y-8">
       <div>
         <h2 className="text-2xl font-semibold">{report.name ? `${report.name} (${report.symbol})` : report.symbol}</h2>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           Last {report.quarters.length} quarters · 1D / 3D / 5D moves are the stock minus the S&amp;P 500, in %
         </p>
         {report.stale && (
@@ -38,8 +40,12 @@ function Report({ report }: { report: TickerReport }) {
 export function Tracker() {
   const router = useRouter();
   const symbol = (useSearchParams().get("t") ?? "").trim().toUpperCase();
-  const [state, setState] = useState<State>({ status: "idle" });
+  const [state, setState] = useState<State>(symbol ? { status: "loading" } : { status: "idle" });
   const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    document.title = state.status === "done" ? `${state.report.symbol} · ${BASE_TITLE}` : BASE_TITLE;
+  }, [state]);
 
   useEffect(() => {
     if (!symbol) {
@@ -69,6 +75,13 @@ export function Tracker() {
     };
   }, [symbol, attempt]);
 
+  const status =
+    state.status === "loading"
+      ? `Loading ${symbol}…`
+      : state.status === "done"
+        ? `Loaded ${state.report.symbol}, ${state.report.quarters.length} quarters`
+        : "";
+
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -80,18 +93,19 @@ export function Tracker() {
           onSubmit={(s) => router.push(`/?t=${encodeURIComponent(s)}`)}
         />
       </header>
-      <section className="mt-8" aria-live="polite">
+      <p role="status" className="sr-only">{status}</p>
+      <section className="mt-8">
         {state.status === "idle" && (
-          <p className="max-w-prose text-zinc-500">
+          <p className="max-w-prose text-zinc-600 dark:text-zinc-400">
             Type a ticker to see how its last 12 earnings reports compared with analyst expectations — and how the stock reacted.
           </p>
         )}
-        {state.status === "loading" && <p className="text-zinc-500">Loading {symbol}…</p>}
+        {state.status === "loading" && <p className="text-zinc-600 dark:text-zinc-400">Loading {symbol}…</p>}
         {state.status === "error" && (
           <div role="alert" className="rounded-lg border border-rose-300 bg-rose-50 p-4 text-rose-800 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-200">
             <p>{state.message}</p>
             {state.canRetry && (
-              <button type="button" onClick={() => setAttempt((a) => a + 1)} className="mt-3 font-medium underline">
+              <button type="button" onClick={() => setAttempt((a) => a + 1)} className="mt-3 rounded font-medium underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">
                 Try again
               </button>
             )}
