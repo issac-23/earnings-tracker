@@ -79,7 +79,11 @@ async function avGet(fn: string, symbol: string, apiKey: string, fetchFn: typeof
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-/** Alpha Vantage sometimes throttles a lone request with its rate-limit message; one retry usually succeeds. */
+/**
+ * Alpha Vantage sometimes throttles a lone request with its rate-limit message; one retry usually succeeds.
+ * Kept because lib/inflight.ts only coalesces per symbol, so lookups of different tickers can still go out back to back and hit the burst limit.
+ * Cost: AV sends the same message for the burst limit and the 25/day cap, so on a cap hit the retry wastes one call and the delay.
+ */
 async function withRateLimitRetry<T>(request: () => Promise<unknown>, parse: (json: unknown) => T, retryDelayMs: number): Promise<T> {
   try {
     return parse(await request());
