@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatDate, formatEps, formatMonthYear, formatPct, formatRevenue, formatUsdDelta } from "@/lib/format";
+import { formatDate, formatEps, formatMonthYear, formatPct, formatRevenue, formatUsdDelta, isZeroUsd } from "@/lib/format";
 
 describe("format", () => {
   it("formatPct", () => {
@@ -21,6 +21,12 @@ describe("format", () => {
     expect(formatUsdDelta(0)).toBe("$0.00");
     expect(formatUsdDelta(-0.004)).toBe("$0.00");
     expect(formatUsdDelta(null)).toBe("—");
+  });
+  it("isZeroUsd rounds to cents", () => {
+    expect(isZeroUsd(0.03)).toBe(false);
+    expect(isZeroUsd(-0.01)).toBe(false);
+    expect(isZeroUsd(0.004)).toBe(true);
+    expect(isZeroUsd(0)).toBe(true);
   });
   it("formatRevenue", () => {
     expect(formatRevenue(46_743_000_000)).toBe("$46.7B");

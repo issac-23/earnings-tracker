@@ -13,10 +13,13 @@ export function formatEps(n: number | null): string {
   return `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`;
 }
 
+/** True when a dollar amount displays as $0.00. */
+export const isZeroUsd = (n: number): boolean => Math.round(Math.abs(n) * 100) === 0;
+
 export function formatUsdDelta(n: number | null): string {
   if (n === null) return DASH;
+  if (isZeroUsd(n)) return "$0.00";
   const cents = Math.round(Math.abs(n) * 100);
-  if (cents === 0) return "$0.00";
   return `${n > 0 ? "+" : "-"}$${(cents / 100).toFixed(2)}`;
 }
 
