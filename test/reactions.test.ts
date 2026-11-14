@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { surprisePct, outcomeOf, baseIndex, computeMove, flagOf } from "@/lib/reactions";
+import { surprisePct, surpriseUsd, SMALL_ESTIMATE, outcomeOf, baseIndex, computeMove, flagOf } from "@/lib/reactions";
 import { STOCK, spyMap } from "./helpers";
 
 describe("surprisePct", () => {
@@ -9,10 +9,34 @@ describe("surprisePct", () => {
   it("handles negative estimates", () => {
     expect(surprisePct(-0.1, -0.2)).toBeCloseTo(50, 6);
   });
-  it("is null when estimate is 0 or a value is missing", () => {
+  it("is null when |estimate| < $0.10, including 0", () => {
+    expect(surprisePct(0.29, 0.01)).toBeNull();
+    expect(surprisePct(-0.05, -0.09)).toBeNull();
     expect(surprisePct(1, 0)).toBeNull();
+  });
+  it("is present at the $0.10 boundary", () => {
+    expect(SMALL_ESTIMATE).toBe(0.1);
+    expect(surprisePct(0.15, 0.1)).toBeCloseTo(50, 6);
+    expect(surprisePct(-0.05, -0.1)).toBeCloseTo(50, 6);
+  });
+  it("is null when a value is missing", () => {
     expect(surprisePct(null, 1)).toBeNull();
     expect(surprisePct(1, null)).toBeNull();
+  });
+});
+
+describe("surpriseUsd", () => {
+  it("is actual − estimate only when the estimate is under $0.10", () => {
+    expect(surpriseUsd(0.29, 0.01)).toBeCloseTo(0.28, 6);
+    expect(surpriseUsd(-0.05, 0)).toBeCloseTo(-0.05, 6);
+    expect(surpriseUsd(0.1, 0)).toBeCloseTo(0.1, 6);
+    expect(surpriseUsd(0.04, 0.09)).toBeCloseTo(-0.05, 6);
+  });
+  it("is null at or above the threshold or when a value is missing", () => {
+    expect(surpriseUsd(1.05, 0.1)).toBeNull();
+    expect(surpriseUsd(1.05, 1.01)).toBeNull();
+    expect(surpriseUsd(null, 0.01)).toBeNull();
+    expect(surpriseUsd(0.5, null)).toBeNull();
   });
 });
 

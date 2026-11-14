@@ -47,6 +47,22 @@ describe("buildQuarterRows", () => {
     expect(r.flag).toBeNull();
   });
 
+  it("small estimate → no surprise %, dollar surprise instead", () => {
+    const r = buildQuarterRows({
+      earnings: [{ fiscalDateEnding: "2025-06-30", reportedDate: "2025-08-28", timing: "AMC", reportedEPS: 0.29, estimatedEPS: 0.01 }],
+      revenue: {}, stock: STOCK, spy: SPY_BARS,
+    })[0];
+    expect(r.surprisePct).toBeNull();
+    expect(r.surpriseUsd).toBeCloseTo(0.28, 6);
+    expect(r.outcome).toBe("beat");
+  });
+
+  it("large estimate keeps surprise %, no dollar surprise", () => {
+    const r = rows()[0];
+    expect(r.surprisePct).not.toBeNull();
+    expect(r.surpriseUsd).toBeNull();
+  });
+
   it("respects limit", () => {
     expect(buildQuarterRows({ earnings: EARNINGS, revenue: {}, stock: STOCK, spy: SPY_BARS, limit: 2 })).toHaveLength(2);
   });

@@ -13,6 +13,13 @@ export function formatEps(n: number | null): string {
   return `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`;
 }
 
+export function formatUsdDelta(n: number | null): string {
+  if (n === null) return DASH;
+  const cents = Math.round(Math.abs(n) * 100);
+  if (cents === 0) return "$0.00";
+  return `${n > 0 ? "+" : "-"}$${(cents / 100).toFixed(2)}`;
+}
+
 export function formatRevenue(n: number | null): string {
   if (n === null) return DASH;
   if (Math.abs(n) >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;

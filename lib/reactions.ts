@@ -1,8 +1,19 @@
 import type { Flag, Move, Outcome, PriceBar, ReportTiming } from "./types";
 
+/** Below this |estimate| a percent surprise explodes, so the surprise is shown in dollars instead. */
+export const SMALL_ESTIMATE = 0.1;
+
+const isSmall = (estimate: number) => Math.abs(estimate) < SMALL_ESTIMATE;
+
 export function surprisePct(actual: number | null, estimate: number | null): number | null {
-  if (actual === null || estimate === null || estimate === 0) return null;
+  if (actual === null || estimate === null || isSmall(estimate)) return null;
   return ((actual - estimate) / Math.abs(estimate)) * 100;
+}
+
+/** actual − estimate, only for quarters whose estimate is too small for a percent surprise. */
+export function surpriseUsd(actual: number | null, estimate: number | null): number | null {
+  if (actual === null || estimate === null || !isSmall(estimate)) return null;
+  return actual - estimate;
 }
 
 export function outcomeOf(actual: number | null, estimate: number | null): Outcome {
