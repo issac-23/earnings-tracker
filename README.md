@@ -45,6 +45,18 @@ The four summary numbers cover the quarters shown:
 - **Quarters**: the 12 most recent quarters that have a reported EPS, newest first. A quarter with no estimate is shown but left out of the beat rate.
 - **Surprise %**: (actual − estimate) / |estimate| × 100. Blank if there is no estimate or the estimate is exactly 0.
 
+## Data sources and limits
+- **Alpha Vantage** (free tier): earnings history (`EARNINGS`) and quarterly revenue (`INCOME_STATEMENT`). It allows 25 requests per day and throttles bursts, so each new ticker costs 2 of them and the app spaces the two calls out and retries once if throttled.
+- **Tiingo** (free tier): daily prices for the ticker and for SPY, plus the company name.
+- **Cache**: responses are saved as files in `.cache/` (git-ignored). Earnings, revenue and prices are reused for up to 24 hours, company names for 7 days. SPY prices are cached once and shared by every ticker. A ticker you've already looked up today costs no API calls.
+- **"Stale"**: if a refresh fails (for example the daily quota is used up) and an older saved copy exists, the app shows it with the note "Showing saved data" instead of an error. The numbers may be out of date.
+
+## Known limits
+- Surprise % can be huge when the estimate is near $0 (for example a $0.01 estimate), so read the averages with care.
+- ETFs such as SPY have no earnings, so they return "not found".
+- Free-tier quota: after 25 Alpha Vantage requests in a day, new tickers fail until the quota resets. Tickers already cached keep working.
+- Tickers must start with a letter and be at most 10 characters (letters, digits, `.` or `-`). Case doesn't matter.
+
 ## Project layout
 - `app/` — Next.js pages and the `/api/ticker/[symbol]` route
 - `components/` — search box, summary, chart and table
