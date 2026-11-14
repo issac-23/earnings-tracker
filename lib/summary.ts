@@ -10,5 +10,6 @@ export function summarize(rows: QuarterRow[]): Summary {
     avgSurprisePct: mean(rows.flatMap((r) => (r.surprisePct === null ? [] : [r.surprisePct]))),
     avgD1Excess: mean(rows.flatMap((r) => (r.moves.d1 ? [r.moves.d1.excess] : []))),
     beatButFell: rows.filter((r) => r.flag === "beat-but-fell").length,
+    excludedSmallEstimate: rows.filter((r) => r.surpriseUsd !== null).length,
   };
 }

@@ -44,6 +44,7 @@ export interface Summary {
   avgSurprisePct: number | null;
   avgD1Excess: number | null;
   beatButFell: number;
+  excludedSmallEstimate: number; // quarters left out of avgSurprisePct because the estimate is under $0.10
 }
 
 export interface TickerReport {

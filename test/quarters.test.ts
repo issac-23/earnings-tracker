@@ -76,11 +76,34 @@ describe("summarize", () => {
     expect(s.avgSurprisePct).toBeCloseTo(-3.0198, 3);
     expect(s.avgD1Excess).toBeCloseTo(-1.67, 2);
     expect(s.beatButFell).toBe(1);
+    expect(s.excludedSmallEstimate).toBe(0);
+  });
+
+  it("averages surprise % only over quarters that have one, and counts the rest", () => {
+    const small: EarningsRecord[] = [
+      ...EARNINGS,
+      { fiscalDateEnding: "2024-09-30", reportedDate: "2025-08-27", timing: "AMC", reportedEPS: 0.29, estimatedEPS: 0.01 },
+      { fiscalDateEnding: "2024-06-30", reportedDate: "2025-08-27", timing: "BMO", reportedEPS: -0.05, estimatedEPS: 0 },
+    ];
+    const s = summarize(buildQuarterRows({ earnings: small, revenue: REVENUE, stock: STOCK, spy: SPY_BARS }));
+    expect(s.avgSurprisePct).toBeCloseTo(-3.0198, 3);
+    expect(s.excludedSmallEstimate).toBe(2);
+    expect(s.quartersWithEstimate).toBe(4);
+    expect(s.beats).toBe(2);
+  });
+
+  it("average is null when every estimate is small", () => {
+    const only: EarningsRecord[] = [
+      { fiscalDateEnding: "2025-06-30", reportedDate: "2025-08-28", timing: "AMC", reportedEPS: 0.29, estimatedEPS: 0.01 },
+    ];
+    const s = summarize(buildQuarterRows({ earnings: only, revenue: {}, stock: STOCK, spy: SPY_BARS }));
+    expect(s.avgSurprisePct).toBeNull();
+    expect(s.excludedSmallEstimate).toBe(1);
   });
 
   it("handles no rows", () => {
     expect(summarize([])).toEqual({
-      quartersWithEstimate: 0, beats: 0, avgSurprisePct: null, avgD1Excess: null, beatButFell: 0,
+      quartersWithEstimate: 0, beats: 0, avgSurprisePct: null, avgD1Excess: null, beatButFell: 0, excludedSmallEstimate: 0,
     });
   });
 });
