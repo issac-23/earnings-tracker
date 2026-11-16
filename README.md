@@ -20,7 +20,7 @@ The app runs locally. Your keys are read on the server and never sent to the bro
 Enter a ticker (for example `NVDA`). You get a summary, a chart, and a table with one row per quarter, newest first.
 
 Each quarter row has:
-- EPS estimate → actual, and the surprise % (how far actual EPS landed from the estimate)
+- EPS estimate → actual, and the surprise % (how far actual EPS landed from the estimate), or the surprise in dollars when the estimate is under $0.10
 - Beat, miss or in line
 - Revenue for that quarter
 - The stock's move 1, 3 and 5 trading days after the report, measured against the S&P 500
@@ -43,7 +43,7 @@ The four summary numbers cover the quarters shown:
 - **Flags** use the 1-day excess move: a beat with a negative excess is "Beat but fell", a miss with a positive excess is "Missed but rose". Both compare to the market, not to zero.
 - **Prices**: split-adjusted closes only. A move is left blank if the price history doesn't reach that far.
 - **Quarters**: the 12 most recent quarters that have a reported EPS, newest first. A quarter with no estimate is shown but left out of the beat rate.
-- **Surprise %**: (actual − estimate) / |estimate| × 100. Blank if there is no estimate or the estimate is exactly 0.
+- **Surprise %**: (actual − estimate) / |estimate| × 100. Blank if there is no estimate, or if the estimate is under $0.10 in absolute value (including exactly 0), because the percent blows up on tiny estimates. Those quarters show the dollar surprise (actual − estimate, for example +$0.28) instead, have no surprise bar in the chart, and are left out of the average surprise, which says how many quarters it excluded.
 
 ## Data sources and limits
 - **Alpha Vantage** (free tier): earnings history (`EARNINGS`) and quarterly revenue (`INCOME_STATEMENT`). It allows 25 requests per day and throttles bursts, so each new ticker costs 2 of them and the app spaces the two calls out and retries once if throttled.
@@ -52,7 +52,7 @@ The four summary numbers cover the quarters shown:
 - **"Stale"**: if a refresh fails (for example the daily quota is used up) and an older saved copy exists, the app shows it with the note "Showing saved data" instead of an error. The numbers may be out of date.
 
 ## Known limits
-- Surprise % can be huge when the estimate is near $0 (for example a $0.01 estimate), so read the averages with care.
+- Quarters with an estimate under $0.10 show a dollar surprise instead of a percent, so the average surprise % only covers the other quarters. The beat rate still counts every quarter with an estimate.
 - ETFs such as SPY have no earnings, so they return "not found".
 - Free-tier quota: after 25 Alpha Vantage requests in a day, new tickers fail until the quota resets. Tickers already cached keep working.
 - Tickers must start with a letter and be at most 10 characters (letters, digits, `.` or `-`). Case doesn't matter.

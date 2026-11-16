@@ -1,4 +1,4 @@
-import { computeMove, flagOf, outcomeOf, surprisePct } from "./reactions";
+import { computeMove, flagOf, outcomeOf, surprisePct, surpriseUsd } from "./reactions";
 import type { EarningsRecord, PriceBar, QuarterRow } from "./types";
 
 export function buildQuarterRows(input: {
@@ -24,6 +24,7 @@ export function buildQuarterRows(input: {
         estimatedEPS: e.estimatedEPS,
         reportedEPS: e.reportedEPS,
         surprisePct: surprisePct(e.reportedEPS, e.estimatedEPS),
+        surpriseUsd: surpriseUsd(e.reportedEPS, e.estimatedEPS),
         outcome,
         revenue: input.revenue[e.fiscalDateEnding] ?? null,
         moves: { d1, d3: move(3), d5: move(5) },

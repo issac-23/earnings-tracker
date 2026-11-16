@@ -1,8 +1,12 @@
-import { formatDate, formatEps, formatMonthYear, formatPct, formatRevenue } from "@/lib/format";
+import { formatDate, formatEps, formatMonthYear, formatPct, formatRevenue, formatUsdDelta, isZeroUsd } from "@/lib/format";
 import type { Move, QuarterRow } from "@/lib/types";
 
 const tone = (n: number | null | undefined) =>
   n == null || Number(n.toFixed(1)) === 0 ? "" : n > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400";
+
+// Estimates under 10¢ have a dollar surprise instead of a percent one; dollars are neutral only at $0.00.
+const surpriseTone = (q: QuarterRow) =>
+  q.surpriseUsd === null ? tone(q.surprisePct) : isZeroUsd(q.surpriseUsd) ? "" : tone(Math.sign(q.surpriseUsd));
 
 const FLAG_LABEL = { "beat-but-fell": "Beat but fell", "missed-but-rose": "Missed but rose" } as const;
 const TIMING_LABEL = { BMO: "before open", AMC: "after close", unknown: "timing unknown" } as const;
@@ -68,7 +72,16 @@ export function QuarterTable({ quarters }: { quarters: QuarterRow[] }) {
               <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
                 {formatEps(q.estimatedEPS)} → {formatEps(q.reportedEPS)}
               </td>
-              <td className={`px-3 py-2 text-right tabular-nums ${tone(q.surprisePct)}`}>{formatPct(q.surprisePct)}</td>
+              <td className={`px-3 py-2 text-right tabular-nums ${surpriseTone(q)}`}>
+                {q.surpriseUsd !== null ? (
+                  <span title="Estimate under 10¢, shown in dollars">
+                    {formatUsdDelta(q.surpriseUsd)}
+                    <span className="sr-only"> (estimate under 10¢, shown in dollars)</span>
+                  </span>
+                ) : (
+                  formatPct(q.surprisePct)
+                )}
+              </td>
               <td className="px-3 py-2 text-right tabular-nums">{formatRevenue(q.revenue)}</td>
               <MoveCell move={q.moves.d1} />
               <MoveCell move={q.moves.d3} />

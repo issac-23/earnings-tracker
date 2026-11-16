@@ -30,7 +30,8 @@ export interface QuarterRow {
   timing: ReportTiming;
   estimatedEPS: number | null;
   reportedEPS: number | null;
-  surprisePct: number | null;
+  surprisePct: number | null; // null when the estimate is missing or under $0.10
+  surpriseUsd: number | null; // actual − estimate, only when the estimate is under $0.10
   outcome: Outcome;
   revenue: number | null;
   moves: { d1: Move | null; d3: Move | null; d5: Move | null };
@@ -43,6 +44,7 @@ export interface Summary {
   avgSurprisePct: number | null;
   avgD1Excess: number | null;
   beatButFell: number;
+  excludedSmallEstimate: number; // quarters left out of avgSurprisePct because the estimate is under $0.10
 }
 
 export interface TickerReport {
