@@ -1,3 +1,4 @@
+import { avGate } from "../avGate";
 import { DataError } from "../errors";
 import type { EarningsRecord, ReportTiming } from "../types";
 
@@ -69,7 +70,7 @@ async function avGet(fn: string, symbol: string, apiKey: string, fetchFn: typeof
   const url = `${BASE}?function=${fn}&symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(apiKey)}`;
   let res: Response;
   try {
-    res = await fetchFn(url, { cache: "no-store" });
+    res = await avGate(() => fetchFn(url, { cache: "no-store" }));
   } catch {
     throw new DataError("UPSTREAM", "Couldn't reach the data provider.");
   }
@@ -77,27 +78,25 @@ async function avGet(fn: string, symbol: string, apiKey: string, fetchFn: typeof
   return res.json();
 }
 
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
 /**
  * Alpha Vantage sometimes throttles a lone request with its rate-limit message; one retry usually succeeds.
- * Kept because lib/inflight.ts only coalesces per symbol, so lookups of different tickers can still go out back to back and hit the burst limit.
+ * Every call, the retry included, goes through lib/avGate.ts, which spaces all Alpha Vantage calls in this process,
+ * so the retry waits out the gate's interval before it goes out.
  * Cost: AV sends the same message for the burst limit and the 25/day cap, so on a cap hit the retry wastes one call and the delay.
  */
-async function withRateLimitRetry<T>(request: () => Promise<unknown>, parse: (json: unknown) => T, retryDelayMs: number): Promise<T> {
+async function withRateLimitRetry<T>(request: () => Promise<unknown>, parse: (json: unknown) => T): Promise<T> {
   try {
     return parse(await request());
   } catch (e) {
     if (!(e instanceof DataError) || e.code !== "RATE_LIMIT") throw e;
   }
-  await sleep(retryDelayMs);
   return parse(await request());
 }
 
-export function fetchEarnings(symbol: string, apiKey: string, fetchFn: typeof fetch = fetch, retryDelayMs = 1500): Promise<EarningsRecord[]> {
-  return withRateLimitRetry(() => avGet("EARNINGS", symbol, apiKey, fetchFn), (j) => parseEarnings(j, symbol), retryDelayMs);
+export function fetchEarnings(symbol: string, apiKey: string, fetchFn: typeof fetch = fetch): Promise<EarningsRecord[]> {
+  return withRateLimitRetry(() => avGet("EARNINGS", symbol, apiKey, fetchFn), (j) => parseEarnings(j, symbol));
 }
 
-export function fetchRevenue(symbol: string, apiKey: string, fetchFn: typeof fetch = fetch, retryDelayMs = 1500): Promise<Record<string, number>> {
-  return withRateLimitRetry(() => avGet("INCOME_STATEMENT", symbol, apiKey, fetchFn), parseIncomeStatement, retryDelayMs);
+export function fetchRevenue(symbol: string, apiKey: string, fetchFn: typeof fetch = fetch): Promise<Record<string, number>> {
+  return withRateLimitRetry(() => avGet("INCOME_STATEMENT", symbol, apiKey, fetchFn), parseIncomeStatement);
 }
