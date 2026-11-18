@@ -14,6 +14,7 @@ The app runs locally. Your keys are read on the server and never sent to the bro
 - `npm run dev` — start the app
 - `npm test` — run tests
 - `npm run lint` — run ESLint
+- `npm run typecheck` — generate Next route types, then type-check with `tsc`
 - `npm run probe -- NVDA` — live-check the data sources and save sample responses to `test/fixtures/`
 
 ## What the app shows
