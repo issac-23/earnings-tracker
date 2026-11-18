@@ -16,6 +16,12 @@ export function surpriseUsd(actual: number | null, estimate: number | null): num
   return actual - estimate;
 }
 
+/** Revenue surprise in percent; null unless both numbers exist and the estimate is positive. */
+export function revenueSurprisePct(actual: number | null, estimate: number | null): number | null {
+  if (actual === null || estimate === null || !(estimate > 0)) return null;
+  return ((actual - estimate) / estimate) * 100;
+}
+
 export function outcomeOf(actual: number | null, estimate: number | null): Outcome {
   if (actual === null || estimate === null) return "unknown";
   if (actual > estimate) return "beat";

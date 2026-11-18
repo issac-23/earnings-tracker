@@ -34,6 +34,9 @@ export interface QuarterRow {
   surpriseUsd: number | null; // actual − estimate, only when the estimate is under $0.10
   outcome: Outcome;
   revenue: number | null;
+  revenueEstimate: number | null; // analyst consensus for the quarter, matched by exact fiscalDateEnding
+  revenueSurprisePct: number | null; // null when either side is missing or the estimate is not positive
+  revenueOutcome: Outcome;
   moves: { d1: Move | null; d3: Move | null; d5: Move | null };
   flag: Flag;
 }
