@@ -66,6 +66,21 @@ export function parseIncomeStatement(json: unknown): Record<string, number> {
   return out;
 }
 
+/** Fiscal-quarter consensus revenue by fiscal quarter end. Year rows, null and non-numeric values are skipped. */
+export function parseRevenueEstimates(json: unknown): Record<string, number> {
+  if (isErrorMessage(json)) return {};
+  assertAvOk(json);
+  const list: unknown[] = Array.isArray(json.estimates) ? json.estimates : [];
+  const out: Record<string, number> = {};
+  for (const item of list) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    const v = num(r.revenue_estimate_average);
+    if (r.horizon === "fiscal quarter" && typeof r.date === "string" && DATE.test(r.date) && v !== null) out[r.date] = v;
+  }
+  return out;
+}
+
 async function avGet(fn: string, symbol: string, apiKey: string, fetchFn: typeof fetch): Promise<unknown> {
   const url = `${BASE}?function=${fn}&symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(apiKey)}`;
   let res: Response;
@@ -99,4 +114,8 @@ export function fetchEarnings(symbol: string, apiKey: string, fetchFn: typeof fe
 
 export function fetchRevenue(symbol: string, apiKey: string, fetchFn: typeof fetch = fetch): Promise<Record<string, number>> {
   return withRateLimitRetry(() => avGet("INCOME_STATEMENT", symbol, apiKey, fetchFn), parseIncomeStatement);
+}
+
+export function fetchRevenueEstimates(symbol: string, apiKey: string, fetchFn: typeof fetch = fetch): Promise<Record<string, number>> {
+  return withRateLimitRetry(() => avGet("EARNINGS_ESTIMATES", symbol, apiKey, fetchFn), parseRevenueEstimates);
 }
