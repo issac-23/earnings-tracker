@@ -11,6 +11,8 @@ const surpriseTone = (q: QuarterRow) =>
 const FLAG_LABEL = { "beat-but-fell": "Beat but fell", "missed-but-rose": "Missed but rose" } as const;
 const TIMING_LABEL = { BMO: "before open", AMC: "after close", unknown: "timing unknown" } as const;
 
+const REVENUE_OUTCOME_LABEL = { beat: "beat", miss: "missed", inline: "in line", unknown: "no estimate" } as const;
+
 function MoveCell({ move }: { move: Move | null }) {
   return (
     <td className="px-3 py-2 text-right tabular-nums">
@@ -39,9 +41,9 @@ export function QuarterTable({ quarters }: { quarters: QuarterRow[] }) {
       tabIndex={0}
       className="overflow-x-auto rounded-xl border border-zinc-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-zinc-800"
     >
-      <table className="w-full min-w-[920px] text-sm">
+      <table className="w-full min-w-[1020px] text-sm">
         <caption className="sr-only">
-          Earnings results by quarter: EPS estimate and actual, surprise, revenue, and 1, 3 and 5 day moves versus the S&amp;P 500
+          Earnings results by quarter: EPS estimate and actual, surprise, revenue estimate and actual with its surprise, and 1, 3 and 5 day moves versus the S&amp;P 500
         </caption>
         <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-600 dark:text-zinc-400 dark:bg-zinc-900">
           <tr>
@@ -49,7 +51,7 @@ export function QuarterTable({ quarters }: { quarters: QuarterRow[] }) {
             <th scope="col" className="px-3 py-2">Reported</th>
             <th scope="col" className="px-3 py-2 text-right">EPS est → actual</th>
             <th scope="col" className="px-3 py-2 text-right">Surprise</th>
-            <th scope="col" className="px-3 py-2 text-right">Revenue</th>
+            <th scope="col" className="px-3 py-2 text-right">Revenue est → actual</th>
             <th scope="col" className="px-3 py-2 text-right">1D</th>
             <th scope="col" className="px-3 py-2 text-right">3D</th>
             <th scope="col" className="px-3 py-2 text-right">5D</th>
@@ -82,7 +84,18 @@ export function QuarterTable({ quarters }: { quarters: QuarterRow[] }) {
                   formatPct(q.surprisePct)
                 )}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">{formatRevenue(q.revenue)}</td>
+              <td className="px-3 py-2 text-right tabular-nums">
+                <span className="whitespace-nowrap">
+                  {formatRevenue(q.revenueEstimate)} → {formatRevenue(q.revenue)}
+                </span>
+                {q.revenueSurprisePct !== null && (
+                  <span className={`block whitespace-nowrap text-xs ${tone(q.revenueSurprisePct)}`}>
+                    <span className="sr-only">Revenue surprise </span>
+                    {formatPct(q.revenueSurprisePct)}
+                    <span className="sr-only"> ({REVENUE_OUTCOME_LABEL[q.revenueOutcome]})</span>
+                  </span>
+                )}
+              </td>
               <MoveCell move={q.moves.d1} />
               <MoveCell move={q.moves.d3} />
               <MoveCell move={q.moves.d5} />
