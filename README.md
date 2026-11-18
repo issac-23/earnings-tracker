@@ -22,7 +22,7 @@ Enter a ticker (for example `NVDA`). You get a summary, a chart, and a table wit
 Each quarter row has:
 - EPS estimate → actual, and the surprise % (how far actual EPS landed from the estimate), or the surprise in dollars when the estimate is under $0.10
 - Beat, miss or in line
-- Revenue for that quarter
+- Revenue estimate → actual, and the revenue surprise % (how far actual revenue landed from the analyst consensus), colored like the EPS surprise
 - The stock's move 1, 3 and 5 trading days after the report, measured against the S&P 500
 - A flag when the reaction went against the result: **Beat but fell** or **Missed but rose**
 
@@ -42,17 +42,19 @@ The four summary numbers cover the quarters shown:
 - **Excess move**: stock move minus SPY move over the same days. The 1/3/5-day figures in the table are excess moves.
 - **Flags** use the 1-day excess move: a beat with a negative excess is "Beat but fell", a miss with a positive excess is "Missed but rose". Both compare to the market, not to zero.
 - **Prices**: split-adjusted closes only. A move is left blank if the price history doesn't reach that far.
+- **Revenue surprise %**: (actual revenue − estimate) / estimate × 100, matching each estimate to its quarter by exact fiscal quarter end date. Blank if either number is missing or the estimate is not positive. If the estimates call fails or the quota is used up, the table shows revenue without estimates.
 - **Quarters**: the 12 most recent quarters that have a reported EPS, newest first. A quarter with no estimate is shown but left out of the beat rate.
 - **Surprise %**: (actual − estimate) / |estimate| × 100. Blank if there is no estimate, or if the estimate is under $0.10 in absolute value (including exactly 0), because the percent blows up on tiny estimates. Those quarters show the dollar surprise (actual − estimate, for example +$0.28) instead, have no surprise bar in the chart, and are left out of the average surprise, which says how many quarters it excluded.
 
 ## Data sources and limits
-- **Alpha Vantage** (free tier): earnings history (`EARNINGS`) and quarterly revenue (`INCOME_STATEMENT`). It allows 25 requests per day and throttles bursts, so each new ticker costs 2 of them and the app spaces the two calls out and retries once if throttled.
+- **Alpha Vantage** (free tier): earnings history (`EARNINGS`) quarterly revenue (`INCOME_STATEMENT`) and analyst revenue estimates (`EARNINGS_ESTIMATES`). It allows 25 requests per day and throttles bursts, so each new ticker costs 3 of them (about 8 new tickers a day instead of 12) and the app spaces the three calls out and retries once if throttled.
 - **Tiingo** (free tier): daily prices for the ticker and for SPY, plus the company name.
-- **Cache**: responses are saved as files in `.cache/` (git-ignored). Earnings, revenue and prices are reused for up to 24 hours, company names for 7 days. SPY prices are cached once and shared by every ticker. A ticker you've already looked up today costs no API calls.
+- **Cache**: responses are saved as files in `.cache/` (git-ignored). Earnings, revenue, revenue estimates and prices are reused for up to 24 hours, company names for 7 days. SPY prices are cached once and shared by every ticker. A ticker you've already looked up today costs no API calls.
 - **"Stale"**: if a refresh fails (for example the daily quota is used up) and an older saved copy exists, the app shows it with the note "Showing saved data" instead of an error. The numbers may be out of date.
 
 ## Known limits
 - Quarters with an estimate under $0.10 show a dollar surprise instead of a percent, so the average surprise % only covers the other quarters. The beat rate still counts every quarter with an estimate.
+- Past revenue estimates come from Alpha Vantage's estimate history; it isn't documented whether they are the final consensus before each report.
 - ETFs such as SPY have no earnings, so they return "not found".
 - Free-tier quota: after 25 Alpha Vantage requests in a day, new tickers fail until the quota resets. Tickers already cached keep working.
 - Tickers must start with a letter and be at most 10 characters (letters, digits, `.` or `-`). Case doesn't matter.
