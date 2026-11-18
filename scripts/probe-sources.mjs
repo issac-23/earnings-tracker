@@ -22,6 +22,19 @@ async function save(name, res) {
 const av = (fn, s) => fetch(`https://www.alphavantage.co/query?function=${fn}&symbol=${s}&apikey=${AV}`);
 const ti = (path) => fetch(`https://api.tiingo.com/tiingo/daily${path}`, { headers: { Authorization: `Token ${TI}` } });
 
+if (process.argv.includes("--estimates-only")) {
+  // One call: refresh just the revenue-estimates fixture.
+  const est = await save(`av-estimates-${symbol}`, await av("EARNINGS_ESTIMATES", symbol));
+  const rows = est.json.estimates ?? [];
+  console.log(JSON.stringify({
+    keys: Object.keys(est.json),
+    rows: rows.length,
+    horizons: [...new Set(rows.map((r) => r.horizon))],
+    quarterRowsWithRevenue: rows.filter((r) => r.horizon === "fiscal quarter" && r.revenue_estimate_average).length,
+  }, null, 2));
+  process.exit(0);
+}
+
 const earn = await save(`av-earnings-${symbol}`, await av("EARNINGS", symbol));
 await sleep(1500);
 const inc = await save(`av-income-${symbol}`, await av("INCOME_STATEMENT", symbol));
