@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { avGate, configureAvGate, resetAvGate } from "@/lib/avGate";
+import { configureAvGate, resetAvGate } from "@/lib/avGate";
 import { fetchEarnings, fetchRevenue } from "@/lib/sources/alphaVantage";
 
 // A fake clock: sleeping just advances time, so nothing really waits.
