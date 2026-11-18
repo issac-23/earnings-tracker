@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { configureAvGate, resetAvGate } from "@/lib/avGate";
@@ -21,6 +21,11 @@ const EARNINGS = {
 function makeRoutes(): Record<string, () => Response> {
   // Order matters: first substring match wins, so prices come before meta.
   return {
+    // EARNINGS_ESTIMATES must come before EARNINGS: first substring match wins.
+    "function=EARNINGS_ESTIMATES": json({ estimates: [
+      { date: "2025-06-30", horizon: "fiscal quarter", revenue_estimate_average: "44000000000.00" },
+      { date: "2026-03-31", horizon: "fiscal year", revenue_estimate_average: "1.00" },
+    ] }),
     "function=EARNINGS": json(EARNINGS),
     "function=INCOME_STATEMENT": json({ quarterlyReports: [{ fiscalDateEnding: "2025-06-30", totalRevenue: "46700000000" }] }),
     "/daily/SPY/prices": json(tiingoRows(SPY_BARS)),
@@ -128,6 +133,66 @@ describe("buildTickerReport", () => {
     routes["function=INCOME_STATEMENT"] = json({ Information: "standard API rate limit is 25 requests per day" });
     const r = await buildTickerReport("TEST", deps);
     expect(r.quarters[0].revenue).toBeNull();
+  });
+
+  it("adds the revenue estimate and surprise to the quarter", async () => {
+    const r = await buildTickerReport("TEST", deps);
+    expect(r.quarters[0].revenueEstimate).toBe(44e9);
+    expect(r.quarters[0].revenueSurprisePct).toBeCloseTo(((46.7e9 - 44e9) / 44e9) * 100, 9);
+    expect(r.quarters[0].revenueOutcome).toBe("beat");
+  });
+
+  it("makes the estimates call third, after earnings and income, spaced by the gate", async () => {
+    let fake = 0;
+    configureAvGate({ spacingMs: 1500, now: () => fake, sleep: async (ms) => { fake += ms; } });
+    const f = deps.fetchFn!;
+    const stamps: number[] = [];
+    await buildTickerReport("TEST", { ...deps, fetchFn: ((u: string | URL | Request, o?: RequestInit) => { stamps.push(fake); return f(u, o); }) as typeof fetch });
+    const av = calls.map((u, i) => ({ u, t: stamps[i] })).filter((c) => c.u.includes("alphavantage"));
+    expect(av.map((c) => c.u.match(/function=([A-Z_]+)/)![1])).toEqual(["EARNINGS", "INCOME_STATEMENT", "EARNINGS_ESTIMATES"]);
+    expect(av[2].t - av[1].t).toBeGreaterThanOrEqual(1500);
+  });
+
+  it("serves the estimates from cache on a second lookup", async () => {
+    await buildTickerReport("TEST", deps);
+    const before = calls.length;
+    const r = await buildTickerReport("TEST", deps);
+    expect(calls.length).toBe(before);
+    expect(r.quarters[0].revenueEstimate).toBe(44e9);
+  });
+
+  it.each([
+    ["an HTTP error", json({}, 500)],
+    ["a rate limit", json({ Information: "standard API rate limit is 25 requests per day" })],
+    ["garbage", json([1, 2])],
+  ])("estimates failing with %s degrades to no estimates", async (_n, route) => {
+    routes["function=EARNINGS_ESTIMATES"] = route;
+    const r = await buildTickerReport("TEST", deps);
+    expect(r.quarters[0].revenueEstimate).toBeNull();
+    expect(r.quarters[0].revenueOutcome).toBe("unknown");
+    expect(r.quarters[0].revenue).toBe(46.7e9);
+    expect(r.stale).toBe(false);
+  });
+
+  it("does not spend the estimates call when earnings came back stale, and reuses the cache", async () => {
+    await buildTickerReport("TEST", deps);
+    clock += 2 * 24 * 60 * 60 * 1000;
+    routes["function=EARNINGS"] = json({ Information: "standard API rate limit is 25 requests per day" });
+    const before = calls.length;
+    const r = await buildTickerReport("TEST", deps);
+    expect(calls.slice(before).some((u) => u.includes("function=EARNINGS_ESTIMATES"))).toBe(false);
+    expect(r.quarters[0].revenueEstimate).toBe(44e9);
+  });
+
+  it("stale earnings with nothing cached gives no estimates and no estimates call", async () => {
+    await buildTickerReport("TEST", deps);
+    for (const f of await readdir(dir)) if (f.includes("av-estimates")) await unlink(path.join(dir, f));
+    clock += 2 * 24 * 60 * 60 * 1000;
+    routes["function=EARNINGS"] = json({ Information: "standard API rate limit is 25 requests per day" });
+    const before = calls.length;
+    const r = await buildTickerReport("TEST", deps);
+    expect(calls.slice(before).some((u) => u.includes("function=EARNINGS_ESTIMATES"))).toBe(false);
+    expect(r.quarters[0].revenueEstimate).toBeNull();
   });
 
   it("does not refresh revenue when earnings came back stale", async () => {

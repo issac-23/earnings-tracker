@@ -1,7 +1,7 @@
 import { cachedFetch, type Cache } from "./cache";
 import { DataError } from "./errors";
 import { buildQuarterRows } from "./quarters";
-import { fetchEarnings, fetchRevenue } from "./sources/alphaVantage";
+import { fetchEarnings, fetchRevenue, fetchRevenueEstimates } from "./sources/alphaVantage";
 import { fetchName, fetchPrices } from "./sources/tiingo";
 import { summarize } from "./summary";
 import type { TickerReport } from "./types";
@@ -34,29 +34,35 @@ export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<
 
   // Earnings first: if this fails there is nothing to show, and it avoids spending other calls.
   const earnings = await get(`av-earnings-${symbol}`, DAY, () => fetchEarnings(symbol, avKey, fetchFn));
-  const revenueKey = `av-income-${symbol}`;
-  const revenueP = earnings.stale
-    ? // Alpha Vantage just refused a refresh: don't spend another call, reuse whatever is cached.
-      cache
-        .get<Record<string, number>>(revenueKey)
-        .then((hit) => ({ data: hit?.data ?? ({} as Record<string, number>), stale: false }))
-        .catch(() => ({ data: {} as Record<string, number>, stale: false }))
-    : get(revenueKey, DAY, () => fetchRevenue(symbol, avKey, fetchFn)).catch(() => ({ data: {} as Record<string, number>, stale: false }));
-  const [revenue, name, stock, spy] = await Promise.all([
+  type Numbers = Record<string, number>;
+  // Revenue and estimates are secondary: a failure gives {} and never fails the report.
+  // When earnings is stale Alpha Vantage just refused a refresh, so don't spend another call: reuse whatever is cached.
+  const secondary = (key: string, fetcher: () => Promise<Numbers>) =>
+    earnings.stale
+      ? cache
+          .get<Numbers>(key)
+          .then((hit) => ({ data: hit?.data ?? ({} as Numbers), stale: false }))
+          .catch(() => ({ data: {} as Numbers, stale: false }))
+      : get(key, DAY, fetcher).catch(() => ({ data: {} as Numbers, stale: false }));
+  const revenueP = secondary(`av-income-${symbol}`, () => fetchRevenue(symbol, avKey, fetchFn));
+  // Chained after revenue so it is the third Alpha Vantage call (the gate spaces them in this order).
+  const estimatesP = revenueP.then(() => secondary(`av-estimates-${symbol}`, () => fetchRevenueEstimates(symbol, avKey, fetchFn)));
+  const [revenue, estimates, name, stock, spy] = await Promise.all([
     revenueP,
+    estimatesP,
     get(`tiingo-meta-${symbol}`, 7 * DAY, () => fetchName(symbol, tiingoKey, fetchFn))
       .catch(() => ({ data: null as string | null, stale: false })),
     get(`tiingo-prices-${symbol}`, DAY, () => fetchPrices(symbol, start, tiingoKey, fetchFn)),
     get("tiingo-prices-SPY", DAY, () => fetchPrices("SPY", start, tiingoKey, fetchFn)),
   ]);
 
-  const quarters = buildQuarterRows({ earnings: earnings.data, revenue: revenue.data, stock: stock.data, spy: spy.data });
+  const quarters = buildQuarterRows({ earnings: earnings.data, revenue: revenue.data, revenueEstimates: estimates.data, stock: stock.data, spy: spy.data });
   return {
     symbol,
     name: name.data,
     quarters,
     summary: summarize(quarters),
     fetchedAt: new Date(now()).toISOString(),
-    stale: [earnings, revenue, stock, spy].some((r) => r.stale),
+    stale: [earnings, revenue, estimates, stock, spy].some((r) => r.stale),
   };
 }
