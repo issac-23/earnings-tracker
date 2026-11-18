@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildQuarterRows } from "@/lib/quarters";
+import { revenueSurprisePct } from "@/lib/reactions";
 import { summarize } from "@/lib/summary";
 import type { EarningsRecord } from "@/lib/types";
 import { STOCK, SPY_BARS } from "./helpers";
@@ -105,5 +106,56 @@ describe("summarize", () => {
     expect(summarize([])).toEqual({
       quartersWithEstimate: 0, beats: 0, avgSurprisePct: null, avgD1Excess: null, beatButFell: 0, excludedSmallEstimate: 0,
     });
+  });
+});
+
+describe("revenue surprise", () => {
+  it("is (actual - estimate) / estimate in percent", () => {
+    expect(revenueSurprisePct(110, 100)).toBeCloseTo(10, 9);
+    expect(revenueSurprisePct(90, 100)).toBeCloseTo(-10, 9);
+    expect(revenueSurprisePct(100, 100)).toBe(0);
+  });
+  it("is null when either side is missing or the estimate is not positive", () => {
+    expect(revenueSurprisePct(null, 100)).toBeNull();
+    expect(revenueSurprisePct(100, null)).toBeNull();
+    expect(revenueSurprisePct(100, 0)).toBeNull();
+    expect(revenueSurprisePct(100, -5)).toBeNull();
+  });
+});
+
+describe("revenue estimates on quarter rows", () => {
+  const build = (revenueEstimates?: Record<string, number>) =>
+    buildQuarterRows({ earnings: EARNINGS, revenue: REVENUE, revenueEstimates, stock: STOCK, spy: SPY_BARS });
+
+  it("matches estimates to quarters by exact fiscalDateEnding", () => {
+    const r = build({ "2025-06-30": 44.0e9, "2025-03-30": 1, "2025-07-01": 2 }).find((x) => x.fiscalDateEnding === "2025-06-30")!;
+    expect(r.revenueEstimate).toBe(44.0e9);
+    expect(r.revenueSurprisePct).toBeCloseTo(((46.7e9 - 44.0e9) / 44.0e9) * 100, 9);
+    expect(r.revenueOutcome).toBe("beat");
+  });
+
+  it("flags a miss and an inline result", () => {
+    expect(build({ "2025-06-30": 50e9 })[0].revenueOutcome).toBe("miss");
+    expect(build({ "2025-06-30": 46.7e9 })[0].revenueOutcome).toBe("inline");
+  });
+
+  it("is unknown with nulls when the estimate or the actual revenue is missing", () => {
+    const noEst = build({})[0];
+    expect(noEst.revenueEstimate).toBeNull();
+    expect(noEst.revenueSurprisePct).toBeNull();
+    expect(noEst.revenueOutcome).toBe("unknown");
+    expect(build()[0].revenueOutcome).toBe("unknown");
+    // 2025-03-31 has an estimate but no actual revenue
+    const noActual = build({ "2025-03-31": 1e9 }).find((x) => x.fiscalDateEnding === "2025-03-31")!;
+    expect(noActual.revenueEstimate).toBe(1e9);
+    expect(noActual.revenueSurprisePct).toBeNull();
+    expect(noActual.revenueOutcome).toBe("unknown");
+  });
+
+  it("keeps the estimate but gives no surprise when it is not positive", () => {
+    const r = build({ "2025-06-30": 0 })[0];
+    expect(r.revenueEstimate).toBe(0);
+    expect(r.revenueSurprisePct).toBeNull();
+    expect(r.revenueOutcome).toBe("unknown");
   });
 });
