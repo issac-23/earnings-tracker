@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { configureAvGate, resetAvGate } from "@/lib/avGate";
 import { createFileCache } from "@/lib/cache";
 import { buildTickerReport, normalizeSymbol, type ReportDeps } from "@/lib/report";
 import { STOCK, SPY_BARS } from "./helpers";
@@ -36,6 +37,7 @@ let clock: number;
 let deps: ReportDeps;
 
 beforeEach(async () => {
+  configureAvGate({ spacingMs: 0 });
   dir = await mkdtemp(path.join(tmpdir(), "et-report-"));
   routes = makeRoutes();
   calls = [];
@@ -49,9 +51,11 @@ beforeEach(async () => {
     if (!hit) throw new Error(`unrouted ${url}`);
     return hit[1]();
   }) as typeof fetch;
-  deps = { cache: createFileCache(dir, () => clock), avKey: "AV", tiingoKey: "TI", fetchFn, now: () => clock, avSpacingMs: 0 };
+  deps = { cache: createFileCache(dir, () => clock), avKey: "AV", tiingoKey: "TI", fetchFn, now: () => clock };
 });
-afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
+afterEach(async () => {
+  resetAvGate();
+  await rm(dir, { recursive: true, force: true }); });
 
 describe("normalizeSymbol", () => {
   it("uppercases and trims valid symbols, rejects junk", () => {
@@ -109,11 +113,15 @@ describe("buildTickerReport", () => {
   });
 
   it("spaces the revenue call after the earnings call", async () => {
-    await buildTickerReport("TEST", { ...deps, avSpacingMs: 20 });
+    let fake = 0;
+    configureAvGate({ spacingMs: 1500, now: () => fake, sleep: async (ms) => { fake += ms; } });
+    const f = deps.fetchFn!;
+    const stamps: number[] = [];
+    await buildTickerReport("TEST", { ...deps, fetchFn: ((u: string | URL | Request, o?: RequestInit) => { stamps.push(fake); return f(u, o); }) as typeof fetch });
     const e = calls.findIndex((u) => u.includes("function=EARNINGS"));
     const i = calls.findIndex((u) => u.includes("function=INCOME_STATEMENT"));
     expect(i).toBeGreaterThan(e);
-    expect(times[i] - times[e]).toBeGreaterThanOrEqual(19);
+    expect(stamps[i] - stamps[e]).toBeGreaterThanOrEqual(1500);
   });
 
   it("revenue rate limit degrades to empty revenue", async () => {
@@ -127,7 +135,7 @@ describe("buildTickerReport", () => {
     clock += 2 * 24 * 60 * 60 * 1000;
     routes["function=EARNINGS"] = json({ Information: "standard API rate limit is 25 requests per day" });
     const before = calls.length;
-    const r = await buildTickerReport("TEST", { ...deps, avSpacingMs: 50 });
+    const r = await buildTickerReport("TEST", deps);
     expect(calls.slice(before).some((u) => u.includes("function=INCOME_STATEMENT"))).toBe(false);
     expect(r.stale).toBe(true);
     expect(r.quarters[0].revenue).toBe(46.7e9);

@@ -1,4 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { configureAvGate, resetAvGate } from "@/lib/avGate";
 import { readFileSync } from "node:fs";
 import { fetchEarnings, parseEarnings, parseIncomeStatement } from "@/lib/sources/alphaVantage";
 import type { DataError } from "@/lib/errors";
@@ -77,6 +78,9 @@ describe("parseIncomeStatement", () => {
 });
 
 describe("fetchEarnings", () => {
+  beforeEach(() => configureAvGate({ spacingMs: 0 }));
+  afterEach(() => resetAvGate());
+
   it("calls the EARNINGS endpoint and parses the result", async () => {
     const f = vi.fn(async () => new Response(JSON.stringify(EARNINGS_JSON)));
     const rows = await fetchEarnings("TEST", "KEY", f as unknown as typeof fetch);
@@ -98,20 +102,20 @@ describe("fetchEarnings", () => {
 
     it("retries once when throttled, then succeeds", async () => {
       const f = respond(limited, EARNINGS_JSON);
-      const rows = await fetchEarnings("TEST", "KEY", f as unknown as typeof fetch, 0);
+      const rows = await fetchEarnings("TEST", "KEY", f as unknown as typeof fetch);
       expect(rows).toHaveLength(3);
       expect(f).toHaveBeenCalledTimes(2);
     });
 
     it("rejects with RATE_LIMIT when still throttled after the retry", async () => {
       const f = respond(limited, limited);
-      await expect(fetchEarnings("TEST", "KEY", f as unknown as typeof fetch, 0)).rejects.toMatchObject({ code: "RATE_LIMIT" });
+      await expect(fetchEarnings("TEST", "KEY", f as unknown as typeof fetch)).rejects.toMatchObject({ code: "RATE_LIMIT" });
       expect(f).toHaveBeenCalledTimes(2);
     });
 
     it("does not retry NOT_FOUND", async () => {
       const f = respond({});
-      await expect(fetchEarnings("TEST", "KEY", f as unknown as typeof fetch, 0)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await expect(fetchEarnings("TEST", "KEY", f as unknown as typeof fetch)).rejects.toMatchObject({ code: "NOT_FOUND" });
       expect(f).toHaveBeenCalledTimes(1);
     });
   });

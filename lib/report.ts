@@ -14,8 +14,6 @@ export interface ReportDeps {
   tiingoKey?: string;
   fetchFn?: typeof fetch;
   now?: () => number;
-  /** Pause before the second Alpha Vantage call, to stay under its burst limit. */
-  avSpacingMs?: number;
 }
 
 export function normalizeSymbol(raw: string): string | null {
@@ -32,11 +30,10 @@ export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<
   const fetchFn = deps.fetchFn ?? fetch;
   const now = deps.now ?? Date.now;
   const start = new Date(now() - 4 * 365 * DAY).toISOString().slice(0, 10);
-  const spacing = deps.avSpacingMs ?? 1500;
   const get = <T,>(key: string, maxAge: number, fn: () => Promise<T>) => cachedFetch(cache, key, maxAge, fn, now);
 
   // Earnings first: if this fails there is nothing to show, and it avoids spending other calls.
-  const earnings = await get(`av-earnings-${symbol}`, DAY, () => fetchEarnings(symbol, avKey, fetchFn, spacing));
+  const earnings = await get(`av-earnings-${symbol}`, DAY, () => fetchEarnings(symbol, avKey, fetchFn));
   const revenueKey = `av-income-${symbol}`;
   const revenueP = earnings.stale
     ? // Alpha Vantage just refused a refresh: don't spend another call, reuse whatever is cached.
@@ -44,10 +41,7 @@ export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<
         .get<Record<string, number>>(revenueKey)
         .then((hit) => ({ data: hit?.data ?? ({} as Record<string, number>), stale: false }))
         .catch(() => ({ data: {} as Record<string, number>, stale: false }))
-    : get(revenueKey, DAY, async () => {
-        if (spacing > 0) await new Promise((r) => setTimeout(r, spacing));
-        return fetchRevenue(symbol, avKey, fetchFn, spacing);
-      }).catch(() => ({ data: {} as Record<string, number>, stale: false }));
+    : get(revenueKey, DAY, () => fetchRevenue(symbol, avKey, fetchFn)).catch(() => ({ data: {} as Record<string, number>, stale: false }));
   const [revenue, name, stock, spy] = await Promise.all([
     revenueP,
     get(`tiingo-meta-${symbol}`, 7 * DAY, () => fetchName(symbol, tiingoKey, fetchFn))
