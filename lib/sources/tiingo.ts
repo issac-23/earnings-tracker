@@ -23,7 +23,7 @@ async function tiingoGet(path: string, symbol: string, apiKey: string, fetchFn: 
   }
   if (res.status === 404) throw new DataError("NOT_FOUND", `No price history found for ${symbol}.`);
   if (res.status === 401 || res.status === 403) {
-    throw new DataError("MISSING_KEY", "Tiingo API key is invalid. Check TIINGO_API_KEY in .env.local.");
+    throw new DataError("MISSING_KEY", "Tiingo API key is invalid. Check TIINGO_API_KEY (.env.local when running locally, the host's environment variables when deployed).");
   }
   if (res.status === 429) throw new DataError("RATE_LIMIT", "Price-data limit reached — wait an hour and try again.");
   if (!res.ok) throw new DataError("UPSTREAM", "Couldn't reach the data provider.");

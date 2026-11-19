@@ -31,7 +31,7 @@ function assertAvOk(json: unknown): asserts json is Record<string, unknown> {
   const info = [o.Information, o.Note].find((v): v is string => typeof v === "string");
   if (info) {
     if (/apikey is invalid|apikey.*missing/i.test(info)) {
-      throw new DataError("MISSING_KEY", "Alpha Vantage API key is invalid. Check ALPHAVANTAGE_API_KEY in .env.local.");
+      throw new DataError("MISSING_KEY", "Alpha Vantage API key is invalid. Check ALPHAVANTAGE_API_KEY (.env.local when running locally, the host's environment variables when deployed).");
     }
     throw new DataError("RATE_LIMIT", "Daily data limit reached — try again tomorrow or use a ticker you've looked up before.");
   }

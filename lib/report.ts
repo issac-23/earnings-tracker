@@ -25,8 +25,8 @@ export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<
   const symbol = normalizeSymbol(raw);
   if (!symbol) throw new DataError("NOT_FOUND", `"${raw.trim()}" doesn't look like a ticker symbol.`);
   const { cache, avKey, tiingoKey } = deps;
-  if (!avKey) throw new DataError("MISSING_KEY", "Missing ALPHAVANTAGE_API_KEY in .env.local.");
-  if (!tiingoKey) throw new DataError("MISSING_KEY", "Missing TIINGO_API_KEY in .env.local.");
+  if (!avKey) throw new DataError("MISSING_KEY", "Missing ALPHAVANTAGE_API_KEY. Set it in .env.local when running locally, or in the host's environment variables when deployed.");
+  if (!tiingoKey) throw new DataError("MISSING_KEY", "Missing TIINGO_API_KEY. Set it in .env.local when running locally, or in the host's environment variables when deployed.");
   const fetchFn = deps.fetchFn ?? fetch;
   const now = deps.now ?? Date.now;
   const start = new Date(now() - 4 * 365 * DAY).toISOString().slice(0, 10);
