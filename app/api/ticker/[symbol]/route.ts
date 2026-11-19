@@ -1,5 +1,5 @@
-import path from "node:path";
-import { createFileCache } from "@/lib/cache";
+import os from "node:os";
+import { cacheDir, createFileCache } from "@/lib/cache";
 import { DataError, type DataErrorCode } from "@/lib/errors";
 import { coalesce } from "@/lib/inflight";
 import { buildTickerReport, normalizeSymbol } from "@/lib/report";
@@ -7,7 +7,7 @@ import { buildTickerReport, normalizeSymbol } from "@/lib/report";
 export const dynamic = "force-dynamic";
 
 const STATUS: Record<DataErrorCode, number> = { NOT_FOUND: 404, RATE_LIMIT: 429, MISSING_KEY: 500, UPSTREAM: 502 };
-const cache = createFileCache(path.join(process.cwd(), ".cache"));
+const cache = createFileCache(cacheDir(process.env, process.cwd(), os.tmpdir()));
 
 export async function GET(_req: Request, { params }: { params: Promise<{ symbol: string }> }) {
   const { symbol } = await params;

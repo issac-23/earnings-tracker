@@ -11,6 +11,16 @@ export interface Cache {
   set<T>(key: string, data: T): Promise<void>;
 }
 
+/**
+ * Where the file cache lives. CACHE_DIR wins; on Vercel only the OS temp dir is writable;
+ * otherwise `.cache` in the project folder.
+ */
+export function cacheDir(env: Record<string, string | undefined>, cwd: string, tmpdir: string): string {
+  if (env.CACHE_DIR) return env.CACHE_DIR;
+  if (env.VERCEL) return path.join(tmpdir, "earnings-tracker-cache");
+  return path.join(cwd, ".cache");
+}
+
 export function createFileCache(dir: string, now: () => number = Date.now): Cache {
   const file = (key: string) => path.join(dir, `${key.replace(/[^a-zA-Z0-9_-]/g, "_")}.json`);
   return {
