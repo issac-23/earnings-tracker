@@ -8,7 +8,20 @@ Type a ticker, see its last 12 quarters: did EPS beat or miss analyst estimates,
 3. `npm install`
 4. `npm run dev` → open http://localhost:3000
 
-The app runs locally. Your keys are read on the server and never sent to the browser.
+Your keys are read on the server and never sent to the browser. To run it on the web instead of your own machine, see Deploy to Vercel below.
+
+## Deploy to Vercel
+The code is already in a public GitHub repo, so there is nothing to upload. The button names below are approximate; Vercel may word them differently.
+1. On vercel.com, choose Add New → Project and import `issac-23/earnings-tracker`.
+2. Vercel should detect Next.js on its own. Keep the default build settings.
+3. Under Environment Variables, add `ALPHAVANTAGE_API_KEY` and `TIINGO_API_KEY`. Paste your own key for each. Never put keys in the repo.
+4. Click Deploy.
+
+What to expect once it is live:
+- **The cache is temporary.** On Vercel the only writable place is `/tmp`. The app saves its cache there, and `/tmp` belongs to one server instance and is wiped when that instance is recycled. Repeat lookups will go back to the data sources more often than they do locally.
+- **The Alpha Vantage quota is shared.** The free tier allows 25 requests a day and each new ticker costs 3. A public URL that anyone can open draws from that one quota, so about 8 new tickers a day across all visitors. Once it runs out, new tickers fail until it resets.
+- **The pause between calls is per instance.** The 1.5 second spacing between Alpha Vantage calls is kept in memory by each server instance. Two instances running at once do not coordinate, so throttling is more likely under heavy use.
+- **Optional:** set `CACHE_DIR` to put the cache somewhere else. Without it, the cache goes in `/tmp` on Vercel and in `.cache/` when running locally.
 
 ## Commands
 - `npm run dev` — start the app
@@ -50,7 +63,7 @@ The four summary numbers cover the quarters shown:
 ## Data sources and limits
 - **Alpha Vantage** (free tier): earnings history (`EARNINGS`) quarterly revenue (`INCOME_STATEMENT`) and analyst revenue estimates (`EARNINGS_ESTIMATES`). It allows 25 requests per day and throttles bursts, so each new ticker costs 3 of them (about 8 new tickers a day instead of 12) and the app spaces the three calls out and retries once if throttled.
 - **Tiingo** (free tier): daily prices for the ticker and for SPY, plus the company name.
-- **Cache**: responses are saved as files in `.cache/` (git-ignored). Earnings, revenue, revenue estimates and prices are reused for up to 24 hours, company names for 7 days. SPY prices are cached once and shared by every ticker. A ticker you've already looked up today costs no API calls.
+- **Cache**: responses are saved as files in `.cache/` (git-ignored); on Vercel, in the temp folder instead (see Deploy to Vercel). Earnings, revenue, revenue estimates and prices are reused for up to 24 hours, company names for 7 days. SPY prices are cached once and shared by every ticker. A ticker you've already looked up today costs no API calls.
 - **"Stale"**: if a refresh fails (for example the daily quota is used up) and an older saved copy exists, the app shows it with the note "Showing saved data" instead of an error. The numbers may be out of date.
 
 ## Known limits
