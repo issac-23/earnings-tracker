@@ -1,4 +1,5 @@
 import os from "node:os";
+import { isAllowed, notAllowedMessage, parseAllowlist } from "@/lib/allowlist";
 import { cacheDir, createFileCache } from "@/lib/cache";
 import { DataError, type DataErrorCode } from "@/lib/errors";
 import { coalesce } from "@/lib/inflight";
@@ -6,7 +7,7 @@ import { buildTickerReport, normalizeSymbol } from "@/lib/report";
 
 export const dynamic = "force-dynamic";
 
-const STATUS: Record<DataErrorCode, number> = { NOT_FOUND: 404, RATE_LIMIT: 429, MISSING_KEY: 500, UPSTREAM: 502 };
+const STATUS: Record<DataErrorCode, number> = { NOT_FOUND: 404, RATE_LIMIT: 429, MISSING_KEY: 500, UPSTREAM: 502, NOT_ALLOWED: 403 };
 const cache = createFileCache(cacheDir(process.env, process.cwd(), os.tmpdir()));
 
 export async function GET(_req: Request, { params }: { params: Promise<{ symbol: string }> }) {
@@ -21,6 +22,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ symbol:
       });
     // Invalid symbols skip coalescing and hit the normal error path inside buildTickerReport.
     const key = normalizeSymbol(raw);
+    // Optional allowlist protects the shared API quota; checked before any cache read or fetch.
+    const allowlist = parseAllowlist(process.env.ALLOWED_TICKERS);
+    if (key && allowlist && !isAllowed(key, allowlist)) {
+      throw new DataError("NOT_ALLOWED", notAllowedMessage(key, allowlist));
+    }
     const report = await (key ? coalesce(key, build) : build());
     return Response.json(report);
   } catch (err) {
