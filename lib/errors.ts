@@ -1,4 +1,4 @@
-export type DataErrorCode = "NOT_FOUND" | "RATE_LIMIT" | "MISSING_KEY" | "UPSTREAM";
+export type DataErrorCode = "NOT_FOUND" | "RATE_LIMIT" | "MISSING_KEY" | "UPSTREAM" | "NOT_ALLOWED";
 
 export class DataError extends Error {
   readonly code: DataErrorCode;

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { DataError } from "@/lib/errors";
 
 vi.mock("@/lib/report", async (importOriginal) => {
@@ -12,6 +12,10 @@ import { GET } from "@/app/api/ticker/[symbol]/route";
 const mocked = vi.mocked(buildTickerReport);
 const call = (symbol: string) =>
   GET(new Request(`http://localhost/api/ticker/${symbol}`), { params: Promise.resolve({ symbol }) });
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 beforeEach(() => {
   mocked.mockReset();
@@ -56,5 +60,60 @@ describe("GET /api/ticker/[symbol]", () => {
     expect(a.status).toBe(200);
     expect(b.status).toBe(200);
     expect(mocked).toHaveBeenCalledTimes(1);
+  });
+
+  describe("ALLOWED_TICKERS", () => {
+    it("rejects a ticker outside the list with 403 NOT_ALLOWED and builds nothing", async () => {
+      vi.stubEnv("ALLOWED_TICKERS", "aapl, MSFT");
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      const res = await call("nvda");
+      expect(res.status).toBe(403);
+      expect(await res.json()).toEqual({
+        error: { code: "NOT_ALLOWED", message: "NVDA isn't available on this site. Available tickers: AAPL, MSFT." },
+      });
+      expect(mocked).not.toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
+      fetchSpy.mockRestore();
+    });
+
+    it("serves a listed ticker, case-insensitively", async () => {
+      vi.stubEnv("ALLOWED_TICKERS", " aapl,MSFT ");
+      mocked.mockResolvedValue({ symbol: "AAPL" } as never);
+      const res = await call("AaPl");
+      expect(res.status).toBe(200);
+      expect(mocked).toHaveBeenCalledTimes(1);
+    });
+
+    it("still shares one build between concurrent requests for a listed ticker", async () => {
+      vi.stubEnv("ALLOWED_TICKERS", "eee");
+      mocked.mockImplementation(async () => {
+        await new Promise((r) => setTimeout(r, 10));
+        return { symbol: "EEE" } as never;
+      });
+      const [a, b] = await Promise.all([call("eee"), call("EEE")]);
+      expect([a.status, b.status]).toEqual([200, 200]);
+      expect(mocked).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the existing response for an invalid symbol", async () => {
+      vi.stubEnv("ALLOWED_TICKERS", "aapl");
+      mocked.mockRejectedValue(new DataError("NOT_FOUND", "bad"));
+      const res = await call("1bad");
+      expect(res.status).toBe(404);
+    });
+
+    it.each([[""], ["  "]])("treats %j as unset", async (v) => {
+      vi.stubEnv("ALLOWED_TICKERS", v);
+      mocked.mockResolvedValue({ symbol: "ZZZ" } as never);
+      const res = await call("zzz");
+      expect(res.status).toBe(200);
+    });
+
+    it("allows any ticker when unset", async () => {
+      vi.stubEnv("ALLOWED_TICKERS", undefined);
+      mocked.mockResolvedValue({ symbol: "ZZZ" } as never);
+      const res = await call("zzz");
+      expect(res.status).toBe(200);
+    });
   });
 });
