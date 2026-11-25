@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { cacheDir, cachedFetch, createFileCache } from "@/lib/cache";
@@ -22,6 +22,25 @@ describe("createFileCache", () => {
   it("turns keys into safe filenames", async () => {
     await createFileCache(dir).set("a/b:c", 1);
     expect(await readdir(dir)).toEqual(["a_b_c.json"]);
+  });
+});
+
+describe("createFileCache atomic writes", () => {
+  it("leaves no temp files behind and reads back correctly", async () => {
+    const cache = createFileCache(dir, () => 5);
+    await Promise.all([cache.set("k", { a: 1 }), cache.set("k", { a: 2 }), cache.set("j", { b: 1 })]);
+    const files = await readdir(dir);
+    expect(files.filter((f) => f.endsWith(".tmp"))).toEqual([]);
+    expect(files.sort()).toEqual(["j.json", "k.json"]);
+    expect((await cache.get<{ a: number }>("k"))?.data.a).toBeGreaterThan(0);
+  });
+
+  it("removes the temp file and rejects when the rename fails", async () => {
+    const cache = createFileCache(dir);
+    // A directory at the target path makes rename fail.
+    await mkdir(path.join(dir, "k.json"));
+    await expect(cache.set("k", 1)).rejects.toThrow();
+    expect((await readdir(dir)).filter((f) => f.endsWith(".tmp"))).toEqual([]);
   });
 });
 

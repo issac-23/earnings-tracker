@@ -164,4 +164,26 @@ describe("GET /api/ticker/[symbol]", () => {
       expect(res.status).toBe(200);
     });
   });
+
+  describe("bad input", () => {
+    beforeEach(async () => {
+      const actual = await vi.importActual<typeof import("@/lib/report")>("@/lib/report");
+      mocked.mockImplementation(actual.buildTickerReport);
+    });
+
+    it("returns 404 NOT_FOUND, not 500, for a malformed percent-encoding", async () => {
+      const res = await call("%E0%A4%A");
+      expect(res.status).toBe(404);
+      expect((await res.json()).error.code).toBe("NOT_FOUND");
+      expect(console.error).not.toHaveBeenCalled();
+    });
+
+    it("keeps the error message short for a huge input", async () => {
+      const res = await call("x".repeat(5000));
+      expect(res.status).toBe(404);
+      const body = await res.json();
+      expect(body.error.message.length).toBeLessThan(100);
+      expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=3600");
+    });
+  });
 });

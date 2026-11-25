@@ -8,6 +8,7 @@ import { summarize } from "./summary";
 import type { TickerReport } from "./types";
 
 const DAY = 24 * 60 * 60 * 1000;
+const NOT_FOUND_TTL = 60 * 60 * 1000;
 
 export interface ReportDeps {
   cache: Cache;
@@ -24,7 +25,10 @@ export function normalizeSymbol(raw: string): string | null {
 
 export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<TickerReport> {
   const symbol = normalizeSymbol(raw);
-  if (!symbol) throw new DataError("NOT_FOUND", `"${raw.trim()}" doesn't look like a ticker symbol.`);
+  if (!symbol) {
+    const shown = raw.trim();
+    throw new DataError("NOT_FOUND", `"${shown.length > 20 ? `${shown.slice(0, 20)}…` : shown}" doesn't look like a ticker symbol.`);
+  }
   const { cache, avKey, tiingoKey } = deps;
   if (!avKey) throw new DataError("MISSING_KEY", "Missing ALPHAVANTAGE_API_KEY. Set it in .env.local when running locally, or in the host's environment variables when deployed.");
   if (!tiingoKey) throw new DataError("MISSING_KEY", "Missing TIINGO_API_KEY. Set it in .env.local when running locally, or in the host's environment variables when deployed.");
@@ -33,8 +37,21 @@ export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<
   const start = new Date(now() - 4 * 365 * DAY).toISOString().slice(0, 10);
   const get = <T,>(key: string, maxAge: number, fn: () => Promise<T>) => cachedFetch(cache, key, maxAge, fn, now);
 
+  // Unknown symbols are remembered for an hour so repeating one doesn't spend an Alpha Vantage call each time.
+  const missKey = `av-notfound-${symbol}`;
+  const miss = await cache.get<{ message: string }>(missKey).catch(() => null);
+  if (miss && now() - miss.savedAt < NOT_FOUND_TTL) throw new DataError("NOT_FOUND", miss.data.message);
+
   // Earnings first: if this fails there is nothing to show, and it avoids spending other calls.
-  const earnings = await get(`av-earnings-${symbol}`, DAY, () => fetchEarnings(symbol, avKey, fetchFn));
+  const earnings = await get(`av-earnings-${symbol}`, DAY, () => fetchEarnings(symbol, avKey, fetchFn)).catch(async (err) => {
+    if (err instanceof DataError && err.code === "NOT_FOUND") {
+      // A failed write must not change the error the caller sees.
+      try {
+        await cache.set(missKey, { message: err.message });
+      } catch {}
+    }
+    throw err;
+  });
   type Numbers = Record<string, number>;
   // Revenue and estimates are secondary: a failure gives {} and never fails the report.
   // A busy gate marks the report stale so the CDN keeps it for minutes, not a day.

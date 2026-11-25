@@ -44,10 +44,10 @@ export interface QuarterRow {
 export interface Summary {
   quartersWithEstimate: number;
   beats: number;
-  avgSurprisePct: number | null;
+  medianSurprisePct: number | null;
   avgD1Excess: number | null;
   beatButFell: number;
-  excludedSmallEstimate: number; // quarters left out of avgSurprisePct because the estimate is under $0.10
+  excludedSmallEstimate: number; // quarters left out of medianSurprisePct because the estimate is under $0.10
 }
 
 export interface TickerReport {
