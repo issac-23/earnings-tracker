@@ -59,3 +59,15 @@ describe("Alpha Vantage fetches go through the gate", () => {
     await expect(fetchEarnings("BBB", "K", okFetch(log))).resolves.toHaveLength(1);
   });
 });
+
+describe("a full gate", () => {
+  it("is not retried and keeps its RATE_LIMIT code", async () => {
+    configureAvGate({ maxQueue: 0 });
+    const f = vi.fn();
+    await expect(fetchEarnings("AAA", "K", f as unknown as typeof fetch)).rejects.toMatchObject({
+      code: "RATE_LIMIT",
+      message: "Too many lookups at once. Try again in a few seconds.",
+    });
+    expect(f).not.toHaveBeenCalled();
+  });
+});

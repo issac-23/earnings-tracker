@@ -43,3 +43,50 @@ describe("avGate", () => {
     expect(slept).toEqual([1500]);
   });
 });
+
+describe("avGate queue cap", () => {
+  const never = () => new Promise<void>(() => {});
+
+  it("rejects the call past maxQueue at once with RATE_LIMIT, without waiting", async () => {
+    configureAvGate({ maxQueue: 2 });
+    let release!: () => void;
+    const hold = new Promise<void>((r) => { release = r; });
+    const a = avGate(() => hold);
+    const b = avGate(async () => "b");
+    await expect(avGate(async () => "c")).rejects.toMatchObject({ code: "RATE_LIMIT", message: "Too many lookups at once. Try again in a few seconds." });
+    // rejected while `a` is still held open, so it didn't wait for anything
+    release();
+    await expect(Promise.all([a, b])).resolves.toBeDefined();
+  });
+
+  it("the refused call does not disturb the chain", async () => {
+    configureAvGate({ maxQueue: 2 });
+    const starts: string[] = [];
+    const call = (n: string) => avGate(async () => { starts.push(n); });
+    const results = await Promise.allSettled([call("a"), call("b"), call("c")]);
+    expect(results.map((r) => r.status)).toEqual(["fulfilled", "fulfilled", "rejected"]);
+    expect(starts).toEqual(["a", "b"]);
+  });
+
+  it("room comes back after tasks finish", async () => {
+    configureAvGate({ maxQueue: 2 });
+    await Promise.all([avGate(async () => 1), avGate(async () => 2)]);
+    await expect(Promise.all([avGate(async () => 3), avGate(async () => 4)])).resolves.toEqual([3, 4]);
+  });
+
+  it("room comes back after failing tasks too", async () => {
+    configureAvGate({ maxQueue: 2 });
+    const boom = () => avGate(async () => { throw new Error("boom"); });
+    await Promise.allSettled([boom(), boom()]);
+    await expect(Promise.all([avGate(async () => 3), avGate(async () => 4)])).resolves.toEqual([3, 4]);
+  });
+
+  it("defaults to 6 and resetAvGate restores the default and the count", async () => {
+    const held = Array.from({ length: 6 }, () => avGate(never));
+    await expect(avGate(async () => 1)).rejects.toMatchObject({ code: "RATE_LIMIT" });
+    resetAvGate();
+    configureAvGate({ now: () => clock, sleep: async (ms) => { clock += ms; } });
+    await expect(avGate(async () => "fresh")).resolves.toBe("fresh");
+    void held;
+  });
+});
