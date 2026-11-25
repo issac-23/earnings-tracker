@@ -26,7 +26,11 @@ const cache = createFileCache(cacheDir(process.env, process.cwd(), os.tmpdir()))
 export async function GET(_req: Request, { params }: { params: Promise<{ symbol: string }> }) {
   const { symbol } = await params;
   try {
-    const raw = decodeURIComponent(symbol);
+    // Next already decodes the param; a second decode can throw on stray "%", so fall back to the raw value.
+    let raw = symbol;
+    try {
+      raw = decodeURIComponent(symbol);
+    } catch {}
     const build = () =>
       buildTickerReport(raw, {
         cache,
