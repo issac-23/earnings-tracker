@@ -6,6 +6,7 @@ import { coalesce } from "@/lib/inflight";
 import { buildTickerReport, normalizeSymbol } from "@/lib/report";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30; // a new ticker can queue behind the Alpha Vantage gate for several seconds
 
 const STATUS: Record<DataErrorCode, number> = { NOT_FOUND: 404, RATE_LIMIT: 429, MISSING_KEY: 500, UPSTREAM: 502, NOT_ALLOWED: 403 };
 
