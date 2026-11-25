@@ -1,4 +1,4 @@
-import { avGate } from "../avGate";
+import { AvBusyError, avGate } from "../avGate";
 import { DataError } from "../errors";
 import type { EarningsRecord, ReportTiming } from "../types";
 
@@ -86,7 +86,8 @@ async function avGet(fn: string, symbol: string, apiKey: string, fetchFn: typeof
   let res: Response;
   try {
     res = await avGate(() => fetchFn(url, { cache: "no-store" }));
-  } catch {
+  } catch (e) {
+    if (e instanceof AvBusyError) throw e;
     throw new DataError("UPSTREAM", "Couldn't reach the data provider.");
   }
   if (!res.ok) throw new DataError("UPSTREAM", "Couldn't reach the data provider.");
@@ -103,7 +104,7 @@ async function withRateLimitRetry<T>(request: () => Promise<unknown>, parse: (js
   try {
     return parse(await request());
   } catch (e) {
-    if (!(e instanceof DataError) || e.code !== "RATE_LIMIT") throw e;
+    if (e instanceof AvBusyError || !(e instanceof DataError) || e.code !== "RATE_LIMIT") throw e;
   }
   return parse(await request());
 }
