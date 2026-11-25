@@ -1,3 +1,4 @@
+import { AvBusyError } from "./avGate";
 import { cachedFetch, type Cache } from "./cache";
 import { DataError } from "./errors";
 import { buildQuarterRows } from "./quarters";
@@ -36,6 +37,7 @@ export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<
   const earnings = await get(`av-earnings-${symbol}`, DAY, () => fetchEarnings(symbol, avKey, fetchFn));
   type Numbers = Record<string, number>;
   // Revenue and estimates are secondary: a failure gives {} and never fails the report.
+  // A busy gate marks the report stale so the CDN keeps it for minutes, not a day.
   // When earnings is stale Alpha Vantage just refused a refresh, so don't spend another call: reuse whatever is cached.
   const secondary = (key: string, fetcher: () => Promise<Numbers>) =>
     earnings.stale
@@ -43,7 +45,7 @@ export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<
           .get<Numbers>(key)
           .then((hit) => ({ data: hit?.data ?? ({} as Numbers), stale: false }))
           .catch(() => ({ data: {} as Numbers, stale: false }))
-      : get(key, DAY, fetcher).catch(() => ({ data: {} as Numbers, stale: false }));
+      : get(key, DAY, fetcher).catch((err) => ({ data: {} as Numbers, stale: err instanceof AvBusyError }));
   const revenueP = secondary(`av-income-${symbol}`, () => fetchRevenue(symbol, avKey, fetchFn));
   // Chained after revenue so it is the third Alpha Vantage call (the gate spaces them in this order).
   const estimatesP = revenueP.then(() => secondary(`av-estimates-${symbol}`, () => fetchRevenueEstimates(symbol, avKey, fetchFn)));

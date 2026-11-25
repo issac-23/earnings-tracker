@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, readdir, rm, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { configureAvGate, resetAvGate } from "@/lib/avGate";
+import { AvBusyError, configureAvGate, resetAvGate } from "@/lib/avGate";
 import { createFileCache } from "@/lib/cache";
 import { buildTickerReport, normalizeSymbol, type ReportDeps } from "@/lib/report";
 import { STOCK, SPY_BARS } from "./helpers";
@@ -172,6 +172,13 @@ describe("buildTickerReport", () => {
     expect(r.quarters[0].revenueOutcome).toBe("unknown");
     expect(r.quarters[0].revenue).toBe(46.7e9);
     expect(r.stale).toBe(false);
+  });
+
+  it("marks the report stale when a secondary call finds the gate busy, so the CDN keeps it only briefly", async () => {
+    routes["function=INCOME_STATEMENT"] = () => { throw new AvBusyError(); };
+    const r = await buildTickerReport("TEST", deps);
+    expect(r.quarters[0].revenue).toBeNull();
+    expect(r.stale).toBe(true);
   });
 
   it("does not spend the estimates call when earnings came back stale, and reuses the cache", async () => {

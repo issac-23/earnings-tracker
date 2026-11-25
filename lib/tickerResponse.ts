@@ -20,5 +20,5 @@ export async function resultFromResponse(res: Response): Promise<TickerResult> {
   }
   if (res.ok) return { status: "done", report: body as TickerReport };
   const err = (body as { error?: { message?: string; code?: string } } | null)?.error;
-  return { status: "error", message: err?.message ?? "Something went wrong.", canRetry: err?.code === "UPSTREAM" };
+  return { status: "error", message: err?.message ?? "Something went wrong.", canRetry: err?.code === "UPSTREAM" || err?.code === "RATE_LIMIT" };
 }

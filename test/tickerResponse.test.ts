@@ -18,11 +18,13 @@ describe("resultFromResponse", () => {
     expect(await resultFromResponse(res)).toEqual({ status: "error", message: "Something went wrong.", canRetry: true });
   });
 
-  it("keeps the API's own error message, retrying only UPSTREAM", async () => {
+  it("keeps the API's own error message, retrying UPSTREAM and RATE_LIMIT", async () => {
     expect(await resultFromResponse(json(429, { error: { code: "RATE_LIMIT", message: "Too many lookups at once. Try again in a few seconds." } })))
-      .toEqual({ status: "error", message: "Too many lookups at once. Try again in a few seconds.", canRetry: false });
+      .toEqual({ status: "error", message: "Too many lookups at once. Try again in a few seconds.", canRetry: true });
     expect(await resultFromResponse(json(502, { error: { code: "UPSTREAM", message: "Down." } })))
       .toMatchObject({ canRetry: true });
+    expect(await resultFromResponse(json(404, { error: { code: "NOT_FOUND", message: "No." } })))
+      .toMatchObject({ canRetry: false });
   });
 
   it("a JSON success becomes the report", async () => {
