@@ -57,4 +57,7 @@ export interface TickerReport {
   summary: Summary;
   fetchedAt: string; // ISO timestamp
   stale: boolean; // true if any core data came from an expired cache after a failed refresh
+  // true when a secondary call (revenue or estimates) failed and nothing was cached, so data is missing for now.
+  // Set when a secondary fetch fails for any reason, including a busy Alpha Vantage queue.
+  degraded: boolean;
 }

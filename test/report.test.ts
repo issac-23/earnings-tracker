@@ -78,6 +78,8 @@ describe("buildTickerReport", () => {
     expect(r.name).toBe("Test Corp");
     expect(r.quarters).toHaveLength(1);
     expect(r.quarters[0].flag).toBe("beat-but-fell");
+    expect(r.stale).toBe(false);
+    expect(r.degraded).toBe(false);
     expect(r.quarters[0].revenue).toBe(46.7e9);
     expect(r.summary.beats).toBe(1);
     expect(r.stale).toBe(false);
@@ -172,13 +174,27 @@ describe("buildTickerReport", () => {
     expect(r.quarters[0].revenueOutcome).toBe("unknown");
     expect(r.quarters[0].revenue).toBe(46.7e9);
     expect(r.stale).toBe(false);
+    expect(r.degraded).toBe(true);
   });
 
-  it("marks the report stale when a secondary call finds the gate busy, so the CDN keeps it only briefly", async () => {
+  it.each([
+    ["an HTTP error", json({}, 500)],
+    ["a rate limit", json({ Information: "standard API rate limit is 25 requests per day" })],
+    ["garbage", json([1, 2])],
+  ])("income statement failing with %s is degraded", async (_n, route) => {
+    routes["function=INCOME_STATEMENT"] = route;
+    const r = await buildTickerReport("TEST", deps);
+    expect(r.quarters[0].revenue).toBeNull();
+    expect(r.stale).toBe(false);
+    expect(r.degraded).toBe(true);
+  });
+
+  it("marks the report degraded, not stale, when a secondary call finds the gate busy, so the CDN keeps it only briefly", async () => {
     routes["function=INCOME_STATEMENT"] = () => { throw new AvBusyError(); };
     const r = await buildTickerReport("TEST", deps);
     expect(r.quarters[0].revenue).toBeNull();
-    expect(r.stale).toBe(true);
+    expect(r.degraded).toBe(true);
+    expect(r.stale).toBe(false);
   });
 
   it("does not spend the estimates call when earnings came back stale, and reuses the cache", async () => {
@@ -200,6 +216,7 @@ describe("buildTickerReport", () => {
     const r = await buildTickerReport("TEST", deps);
     expect(calls.slice(before).some((u) => u.includes("function=EARNINGS_ESTIMATES"))).toBe(false);
     expect(r.quarters[0].revenueEstimate).toBeNull();
+    expect(r.degraded).toBe(false);
   });
 
   it("does not refresh revenue when earnings came back stale", async () => {

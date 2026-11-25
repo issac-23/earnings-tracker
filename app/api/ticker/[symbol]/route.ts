@@ -42,7 +42,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ symbol:
       throw new DataError("NOT_ALLOWED", notAllowedMessage(key, allowlist));
     }
     const report = await (key ? coalesce(key, build) : build());
-    return Response.json(report, { headers: { "Cache-Control": report.stale ? CACHE_STALE_REPORT : CACHE_REPORT } });
+    return Response.json(report, { headers: { "Cache-Control": report.stale || report.degraded ? CACHE_STALE_REPORT : CACHE_REPORT } });
   } catch (err) {
     if (err instanceof DataError) {
       return Response.json({ error: { code: err.code, message: err.message } }, { status: STATUS[err.code], headers: { "Cache-Control": ERROR_CACHE[err.code] } });
