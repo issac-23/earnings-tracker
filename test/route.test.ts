@@ -62,6 +62,54 @@ describe("GET /api/ticker/[symbol]", () => {
     expect(mocked).toHaveBeenCalledTimes(1);
   });
 
+  describe("Cache-Control", () => {
+    it("lets the shared cache keep a fresh report for a day, with no browser max-age", async () => {
+      mocked.mockResolvedValue({ symbol: "FFF", stale: false } as never);
+      const res = await call("fff");
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=86400, stale-while-revalidate=86400");
+    });
+
+    it("gives a stale report a short shared cache", async () => {
+      mocked.mockResolvedValue({ symbol: "GGG", stale: true } as never);
+      const res = await call("ggg");
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=300");
+    });
+
+    it("caches NOT_FOUND for an hour", async () => {
+      mocked.mockRejectedValue(new DataError("NOT_FOUND", "nope"));
+      const res = await call("hhh");
+      expect(res.status).toBe(404);
+      expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=3600");
+    });
+
+    it("caches NOT_ALLOWED for an hour", async () => {
+      vi.stubEnv("ALLOWED_TICKERS", "aapl");
+      const res = await call("iii");
+      expect(res.status).toBe(403);
+      expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=3600");
+    });
+
+    it.each([
+      ["RATE_LIMIT", 429],
+      ["UPSTREAM", 502],
+      ["MISSING_KEY", 500],
+    ] as const)("does not cache %s", async (code, status) => {
+      mocked.mockRejectedValue(new DataError(code, "x"));
+      const res = await call("jjj");
+      expect(res.status).toBe(status);
+      expect(res.headers.get("Cache-Control")).toBe("no-store");
+    });
+
+    it("does not cache an unexpected 500", async () => {
+      mocked.mockRejectedValue(new Error("boom"));
+      const res = await call("kkk");
+      expect(res.status).toBe(500);
+      expect(res.headers.get("Cache-Control")).toBe("no-store");
+    });
+  });
+
   describe("ALLOWED_TICKERS", () => {
     it("rejects a ticker outside the list with 403 NOT_ALLOWED and builds nothing", async () => {
       vi.stubEnv("ALLOWED_TICKERS", "aapl, MSFT");
