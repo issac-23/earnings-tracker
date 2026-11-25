@@ -43,7 +43,7 @@ Each quarter row has:
 
 The four summary numbers cover the quarters shown:
 - **Beat rate**: quarters where EPS topped the estimate, out of quarters that have an estimate
-- **Avg EPS surprise**
+- **Median EPS surprise**: the typical gap between actual EPS and the estimate. The median is used so one quarter with a tiny estimate can't swamp the rest
 - **Avg 1-day move vs S&P**
 - **Beat but fell**: beats where the stock lagged the S&P the next day, out of all beats
 

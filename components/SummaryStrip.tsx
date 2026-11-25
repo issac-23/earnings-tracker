@@ -17,9 +17,9 @@ export function SummaryStrip({ summary: s }: { summary: Summary }) {
     <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <Stat label="Beat rate" value={`${s.beats} / ${s.quartersWithEstimate}`} note="quarters where EPS topped the estimate" />
       <Stat
-        label="Avg EPS surprise"
-        value={formatPct(s.avgSurprisePct)}
-        note="how far actual EPS landed from the estimate"
+        label="Median EPS surprise"
+        value={formatPct(s.medianSurprisePct)}
+        note="typical gap between actual EPS and the estimate"
         extra={
           s.excludedSmallEstimate > 0
             ? `Excludes ${s.excludedSmallEstimate} ${s.excludedSmallEstimate === 1 ? "quarter" : "quarters"} with an estimate under 10¢`
