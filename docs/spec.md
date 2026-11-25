@@ -13,31 +13,32 @@ Personal tool first, runs locally. Built so it can be deployed and shared later 
 - Single page with a ticker search box.
 - Summary strip (4 numbers): beat rate, average EPS surprise %, average 1-day move vs S&P, "beat but fell" count.
 - Chart: per quarter, two bars side by side — EPS surprise % and 1-day move vs S&P.
-- Table: one row per quarter — fiscal quarter, report date + timing (BMO/AMC), EPS estimate → actual, surprise %, reported revenue, 1D/3D/5D move vs S&P. Hover a move cell to see raw stock move and S&P move separately.
+- Table: one row per quarter — fiscal quarter, report date + timing (BMO/AMC), EPS estimate → actual, surprise %, reported revenue (with the analyst estimate and surprise % when available), 1D/3D/5D move vs S&P. Hover a move cell to see raw stock move and S&P move separately.
 - Highlight rows where results and reaction disagree ("beat but fell", "missed but rose").
 - Works on phone and desktop; looks right in light and dark system themes.
 
 ## Out of scope (v1, candidates for v2)
 
-Watchlists / multi-ticker comparison, upcoming earnings calendar, revenue beat/miss (needs a paid estimates source), accounts, alerts.
+Watchlists / multi-ticker comparison, upcoming earnings calendar, accounts, alerts.
 
 ## Data sources
 
 | Need | Source | Notes |
 |---|---|---|
-| EPS actual, estimate, surprise, report date, report timing | Alpha Vantage `EARNINGS` (free key) | 25 requests/day limit |
+| EPS actual, estimate, surprise, report date, report timing | Alpha Vantage `EARNINGS` (free key) | 25 requests/day limit; calls are spaced 1.5 s apart |
 | Reported quarterly revenue | Alpha Vantage `INCOME_STATEMENT` (free key) | Matched to quarters by fiscal date |
+| Analyst revenue estimates | Alpha Vantage `EARNINGS_ESTIMATES` (free key) | Matched to quarters by fiscal date |
 | Daily closing prices for ticker and SPY | Tiingo EOD prices (free key) | SPY stands in for the S&P 500 |
 
 API keys live in `.env.local`, never in code or in the browser. All calls happen on the server side of the app.
 
-**Caching:** every API response is saved locally in a `.cache/` folder. Earnings data is reused for 24 hours, then refreshed once per day at most. Price history is refreshed once per day at most. A ticker costs 2 Alpha Vantage calls the first time and 0 after that, so the 25/day limit only matters when looking up many new tickers in one day. The cache sits behind a small interface so it can be swapped for a hosted store when deployed.
+**Caching:** every API response is saved in a file cache: `CACHE_DIR` if set, the OS temp dir (`/tmp`) on Vercel, otherwise `.cache/` in the project. Earnings data is reused for 24 hours, then refreshed once per day at most. Price history is refreshed once per day at most. A ticker costs 3 Alpha Vantage calls the first time and 0 after that, so the 25/day limit only matters when looking up many new tickers in one day. The cache sits behind a small interface so it can be swapped for a hosted store when deployed.
 
 **First build step verifies these sources** with real calls before any UI is built. If a source doesn't return what's described here, stop and bring options to the product owner.
 
 ## Calculations
 
-- **Surprise %** = (actual − estimate) / |estimate| × 100. Beat if actual > estimate, miss if actual < estimate, in-line if equal. If the estimate is missing, the row shows "—" and is left out of the averages.
+- **Surprise %** = (actual − estimate) / |estimate| × 100. Beat if actual > estimate, miss if actual < estimate, in-line if equal. If the estimate is missing, the row shows "—" and is left out of the averages. If the estimate is under $0.10 the percentage is meaningless, so the row shows the dollar surprise (actual − estimate) instead and is also left out of the averages.
 - **Day-1 alignment:**
   - BMO (before market open): base = close on the trading day *before* the report date; day 1 = close on the report date.
   - AMC (after market close): base = close on the report date; day 1 = close on the next trading day.
@@ -57,7 +58,9 @@ Next.js (TypeScript) web app, Tailwind for styling, Recharts for the chart. Each
 - `lib/cache.ts` — read/write cached responses with a max age.
 - `lib/reactions.ts` — pure functions: day-1 alignment, N-day moves, vs-S&P, surprise, flags. No network calls.
 - `lib/summary.ts` — pure functions: the 4 summary numbers from a list of quarters.
-- `app/api/ticker/[symbol]/route.ts` — server endpoint that combines the above and returns one JSON result per ticker.
+- `app/api/ticker/[symbol]/route.ts` — server endpoint that combines the above and returns one JSON result per ticker, with CDN `Cache-Control` headers (`s-maxage` of one day for reports, five minutes for stale ones, one hour for not-found and not-allowed, `no-store` for transient errors).
+- `lib/avGate.ts` — spaces Alpha Vantage calls 1.5 s apart.
+- `lib/allowlist.ts` — the optional `ALLOWED_TICKERS` check.
 - `app/page.tsx` + components (`SearchBox`, `SummaryStrip`, `QuarterChart`, `QuarterTable`) — the screen.
 
 Flow: user types a ticker → page calls the server endpoint → endpoint reads cache or calls APIs → computes quarters + summary → page renders.
@@ -69,6 +72,7 @@ Flow: user types a ticker → page calls the server endpoint → endpoint reads 
 | Unknown ticker / no earnings history (e.g. an ETF) | "No earnings history found for XYZ." |
 | Alpha Vantage daily limit hit | Cached data if any is available, with a note; otherwise "Daily data limit reached — try again tomorrow or use a ticker you've looked up before." |
 | Missing API key | Clear setup message naming which key is missing (local only). |
+| Ticker not in `ALLOWED_TICKERS` (when set) | 403 listing the available tickers, before any cache read or API call. |
 | Network/API failure | "Couldn't reach the data provider" plus a retry button. |
 | Partial data (e.g. no revenue) | Row still shows; missing cells show "—". |
 

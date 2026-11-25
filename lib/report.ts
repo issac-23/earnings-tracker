@@ -23,7 +23,10 @@ export function normalizeSymbol(raw: string): string | null {
 
 export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<TickerReport> {
   const symbol = normalizeSymbol(raw);
-  if (!symbol) throw new DataError("NOT_FOUND", `"${raw.trim()}" doesn't look like a ticker symbol.`);
+  if (!symbol) {
+    const shown = raw.trim();
+    throw new DataError("NOT_FOUND", `"${shown.length > 20 ? `${shown.slice(0, 20)}…` : shown}" doesn't look like a ticker symbol.`);
+  }
   const { cache, avKey, tiingoKey } = deps;
   if (!avKey) throw new DataError("MISSING_KEY", "Missing ALPHAVANTAGE_API_KEY. Set it in .env.local when running locally, or in the host's environment variables when deployed.");
   if (!tiingoKey) throw new DataError("MISSING_KEY", "Missing TIINGO_API_KEY. Set it in .env.local when running locally, or in the host's environment variables when deployed.");

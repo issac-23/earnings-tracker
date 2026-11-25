@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
@@ -34,7 +35,16 @@ export function createFileCache(dir: string, now: () => number = Date.now): Cach
     async set<T>(key: string, data: T): Promise<void> {
       await fs.mkdir(dir, { recursive: true });
       const entry: CacheEntry<T> = { savedAt: now(), data };
-      await fs.writeFile(file(key), JSON.stringify(entry));
+      // Write to a temp file then rename, so a concurrent read never sees partial JSON.
+      const target = file(key);
+      const tmp = `${target}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`;
+      try {
+        await fs.writeFile(tmp, JSON.stringify(entry));
+        await fs.rename(tmp, target);
+      } catch (err) {
+        await fs.rm(tmp, { force: true }).catch(() => {});
+        throw err;
+      }
     },
   };
 }

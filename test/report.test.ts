@@ -206,3 +206,13 @@ describe("buildTickerReport", () => {
     expect(r.quarters[0].revenue).toBe(46.7e9);
   });
 });
+
+describe("buildTickerReport input echo", () => {
+  it("truncates a long invalid input in the NOT_FOUND message", async () => {
+    const cache = createFileCache(await mkdtemp(path.join(tmpdir(), "et-echo-")));
+    const err = await buildTickerReport("x".repeat(5000), { cache, avKey: "a", tiingoKey: "t" }).catch((e) => e);
+    expect(err.code).toBe("NOT_FOUND");
+    expect(err.message.length).toBeLessThan(80);
+    expect(err.message).toContain("…");
+  });
+});
