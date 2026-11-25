@@ -1,4 +1,3 @@
-import { AvBusyError } from "./avGate";
 import { cachedFetch, type Cache } from "./cache";
 import { DataError } from "./errors";
 import { buildQuarterRows } from "./quarters";
@@ -54,15 +53,17 @@ export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<
   });
   type Numbers = Record<string, number>;
   // Revenue and estimates are secondary: a failure gives {} and never fails the report.
-  // A busy gate marks the report stale so the CDN keeps it for minutes, not a day.
+  // A failed fetch (any reason, including a busy gate) marks the report degraded so the CDN keeps it for minutes, not a day.
   // When earnings is stale Alpha Vantage just refused a refresh, so don't spend another call: reuse whatever is cached.
   const secondary = (key: string, fetcher: () => Promise<Numbers>) =>
     earnings.stale
       ? cache
           .get<Numbers>(key)
-          .then((hit) => ({ data: hit?.data ?? ({} as Numbers), stale: false }))
-          .catch(() => ({ data: {} as Numbers, stale: false }))
-      : get(key, DAY, fetcher).catch((err) => ({ data: {} as Numbers, stale: err instanceof AvBusyError }));
+          .then((hit) => ({ data: hit?.data ?? ({} as Numbers), stale: false, failed: false }))
+          .catch(() => ({ data: {} as Numbers, stale: false, failed: false }))
+      : get(key, DAY, fetcher)
+          .then((r) => ({ ...r, failed: false }))
+          .catch(() => ({ data: {} as Numbers, stale: false, failed: true }));
   const revenueP = secondary(`av-income-${symbol}`, () => fetchRevenue(symbol, avKey, fetchFn));
   // Chained after revenue so it is the third Alpha Vantage call (the gate spaces them in this order).
   const estimatesP = revenueP.then(() => secondary(`av-estimates-${symbol}`, () => fetchRevenueEstimates(symbol, avKey, fetchFn)));
@@ -83,5 +84,6 @@ export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<
     summary: summarize(quarters),
     fetchedAt: new Date(now()).toISOString(),
     stale: [earnings, revenue, estimates, stock, spy].some((r) => r.stale),
+    degraded: revenue.failed || estimates.failed,
   };
 }

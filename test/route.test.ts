@@ -77,6 +77,13 @@ describe("GET /api/ticker/[symbol]", () => {
       expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=300");
     });
 
+    it("gives a degraded report a short shared cache", async () => {
+      mocked.mockResolvedValue({ symbol: "GGD", stale: false, degraded: true } as never);
+      const res = await call("ggd");
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=300");
+    });
+
     it("caches NOT_FOUND for an hour", async () => {
       mocked.mockRejectedValue(new DataError("NOT_FOUND", "nope"));
       const res = await call("hhh");
