@@ -18,6 +18,7 @@ The code is already in a public GitHub repo, so there is nothing to upload. The 
 4. Click Deploy.
 
 What to expect once it is live:
+- **Lookups are cached at the edge.** Successful lookups are cached at Vercel's edge for a day, so repeat lookups of the same ticker don't spend Alpha Vantage quota. Errors that can recover, such as a rate limit, are not cached.
 - **The cache is temporary.** On Vercel the only writable place is `/tmp`. The app saves its cache there, and `/tmp` belongs to one server instance and is wiped when that instance is recycled. Repeat lookups will go back to the data sources more often than they do locally.
 - **The Alpha Vantage quota is shared.** The free tier allows 25 requests a day and each new ticker costs 3. A public URL that anyone can open draws from that one quota, so about 8 new tickers a day across all visitors. Once it runs out, new tickers fail until it resets. To protect it, set `ALLOWED_TICKERS` to a comma-separated list such as `NVDA,AAPL,MSFT` (case and spaces don't matter). Any other ticker is refused with a 403 before it touches the cache or the API. Leave it unset or empty to allow any ticker.
 - **The pause between calls is per instance.** The 1.5 second spacing between Alpha Vantage calls is kept in memory by each server instance. Two instances running at once do not coordinate, so throttling is more likely under heavy use.
