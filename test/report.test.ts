@@ -205,4 +205,41 @@ describe("buildTickerReport", () => {
     expect(r.stale).toBe(true);
     expect(r.quarters[0].revenue).toBe(46.7e9);
   });
+
+  describe("unknown tickers", () => {
+    const HOUR = 60 * 60 * 1000;
+    const avCalls = () => calls.filter((u) => u.includes("alphavantage")).length;
+    beforeEach(() => {
+      routes["function=EARNINGS"] = json({});
+    });
+
+    it("remembers an unknown symbol for an hour without calling Alpha Vantage", async () => {
+      await expect(buildTickerReport("ZZZ1", deps)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      const before = calls.length;
+      expect(before).toBeGreaterThan(0);
+      clock += HOUR - 1000;
+      await expect(buildTickerReport("zzz1", deps)).rejects.toMatchObject({ code: "NOT_FOUND", message: "No earnings history found for ZZZ1." });
+      expect(calls.length).toBe(before);
+    });
+
+    it("fetches again once the hour has passed", async () => {
+      await expect(buildTickerReport("ZZZ1", deps)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      const before = avCalls();
+      clock += HOUR + 1000;
+      await expect(buildTickerReport("ZZZ1", deps)).rejects.toMatchObject({ code: "NOT_FOUND" });
+      expect(avCalls()).toBe(before + 1);
+    });
+
+    it.each([
+      ["RATE_LIMIT", json({ Information: "standard API rate limit is 25 requests per day" })],
+      ["UPSTREAM", json({}, 500)],
+    ])("does not remember a %s failure", async (code, route) => {
+      routes["function=EARNINGS"] = route;
+      await expect(buildTickerReport("ZZZ1", deps)).rejects.toMatchObject({ code });
+      const perLookup = avCalls();
+      expect(perLookup).toBeGreaterThan(0);
+      await expect(buildTickerReport("ZZZ1", deps)).rejects.toMatchObject({ code });
+      expect(avCalls()).toBe(perLookup * 2);
+    });
+  });
 });
