@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { resultFromResponse } from "@/lib/tickerResponse";
 import type { TickerReport } from "@/lib/types";
 import { QuarterChart } from "./QuarterChart";
 import { QuarterTable } from "./QuarterTable";
@@ -57,15 +58,8 @@ export function Tracker() {
     setState({ status: "loading" });
     fetch(`/api/ticker/${encodeURIComponent(symbol)}`)
       .then(async (res) => {
-        const body = await res.json();
-        if (cancelled) return;
-        if (res.ok) setState({ status: "done", report: body as TickerReport });
-        else
-          setState({
-            status: "error",
-            message: body?.error?.message ?? "Something went wrong.",
-            canRetry: body?.error?.code === "UPSTREAM",
-          });
+        const result = await resultFromResponse(res);
+        if (!cancelled) setState(result);
       })
       .catch(() => {
         if (!cancelled) setState({ status: "error", message: "Couldn't reach the data provider.", canRetry: true });
