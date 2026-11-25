@@ -7,6 +7,7 @@ import { summarize } from "./summary";
 import type { TickerReport } from "./types";
 
 const DAY = 24 * 60 * 60 * 1000;
+const NOT_FOUND_TTL = 60 * 60 * 1000;
 
 export interface ReportDeps {
   cache: Cache;
@@ -35,8 +36,21 @@ export async function buildTickerReport(raw: string, deps: ReportDeps): Promise<
   const start = new Date(now() - 4 * 365 * DAY).toISOString().slice(0, 10);
   const get = <T,>(key: string, maxAge: number, fn: () => Promise<T>) => cachedFetch(cache, key, maxAge, fn, now);
 
+  // Unknown symbols are remembered for an hour so repeating one doesn't spend an Alpha Vantage call each time.
+  const missKey = `av-notfound-${symbol}`;
+  const miss = await cache.get<{ message: string }>(missKey).catch(() => null);
+  if (miss && now() - miss.savedAt < NOT_FOUND_TTL) throw new DataError("NOT_FOUND", miss.data.message);
+
   // Earnings first: if this fails there is nothing to show, and it avoids spending other calls.
-  const earnings = await get(`av-earnings-${symbol}`, DAY, () => fetchEarnings(symbol, avKey, fetchFn));
+  const earnings = await get(`av-earnings-${symbol}`, DAY, () => fetchEarnings(symbol, avKey, fetchFn)).catch(async (err) => {
+    if (err instanceof DataError && err.code === "NOT_FOUND") {
+      // A failed write must not change the error the caller sees.
+      try {
+        await cache.set(missKey, { message: err.message });
+      } catch {}
+    }
+    throw err;
+  });
   type Numbers = Record<string, number>;
   // Revenue and estimates are secondary: a failure gives {} and never fails the report.
   // When earnings is stale Alpha Vantage just refused a refresh, so don't spend another call: reuse whatever is cached.
